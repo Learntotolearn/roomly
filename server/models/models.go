@@ -53,8 +53,9 @@ type BookingRequest struct {
 
 // 时间段结构
 type TimeSlot struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
+	Start    string `json:"start"`
+	End      string `json:"end"`
+	IsBooked bool   `json:"is_booked"`
 }
 
 // 可用时间段响应

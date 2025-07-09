@@ -71,12 +71,12 @@ func GetAvailableSlots(c *gin.Context) {
 	// 生成所有可能的时间段（24小时，每30分钟一个时间段）
 	allSlots := generateAllTimeSlots()
 
-	// 移除已被预定的时间段
-	availableSlots := filterAvailableSlots(allSlots, bookings)
+	// 标记已被预定的时间段
+	slotsWithBookingStatus := markBookedSlots(allSlots, bookings)
 
 	c.JSON(http.StatusOK, models.AvailableSlots{
 		Date:      date,
-		TimeSlots: availableSlots,
+		TimeSlots: slotsWithBookingStatus,
 	})
 }
 
@@ -164,8 +164,9 @@ func generateAllTimeSlots() []models.TimeSlot {
 			start := fmt.Sprintf("%02d:%02d", hour, minute)
 			end := getEndTime(start)
 			slots = append(slots, models.TimeSlot{
-				Start: start,
-				End:   end,
+				Start:    start,
+				End:      end,
+				IsBooked: false, // 默认未预定
 			})
 		}
 	}
@@ -247,4 +248,26 @@ func areSlotsAvailable(roomID uint, date string, timeSlots []string) bool {
 	}
 
 	return true
+}
+
+// 标记已被预定的时间段
+func markBookedSlots(allSlots []models.TimeSlot, bookings []models.Booking) []models.TimeSlot {
+	var slotsWithStatus []models.TimeSlot
+
+	for _, slot := range allSlots {
+		slotCopy := slot
+		slotCopy.IsBooked = false
+
+		// 检查该时间段是否与任何预定记录重叠
+		for _, booking := range bookings {
+			if isTimeSlotOverlap(slot, booking) {
+				slotCopy.IsBooked = true
+				break
+			}
+		}
+
+		slotsWithStatus = append(slotsWithStatus, slotCopy)
+	}
+
+	return slotsWithStatus
 }

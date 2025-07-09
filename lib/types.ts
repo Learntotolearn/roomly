@@ -35,6 +35,7 @@ export interface Booking {
 export interface TimeSlot {
   start: string;
   end: string;
+  is_booked: boolean;
 }
 
 export interface AvailableSlots {

@@ -161,8 +161,8 @@ export default function BookingPage() {
     return `${start} - ${end}`;
   };
 
-  // 过滤掉当前时间之前的时间段
-  const filterAvailableSlots = (slots: TimeSlot[]) => {
+  // 过滤掉当前时间之前的时间段，但保留已预定时间段用于显示
+  const processTimeSlots = (slots: TimeSlot[]) => {
     if (!selectedDate) return slots;
     
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -172,17 +172,20 @@ export default function BookingPage() {
       return slots;
     }
     
-    // 如果是今天，过滤掉当前时间之前的时间段
+    // 如果是今天，标记当前时间之前的时间段为不可选
     const now = new Date();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
     
-    return slots.filter(slot => {
+    return slots.map(slot => {
       const [slotHours, slotMinutes] = slot.start.split(':').map(Number);
-      // 如果时间段开始时间早于当前时间，则过滤掉
-      if (slotHours < currentHours) return false;
-      if (slotHours === currentHours && slotMinutes < currentMinutes) return false;
-      return true;
+      const isPastTime = slotHours < currentHours || 
+        (slotHours === currentHours && slotMinutes < currentMinutes);
+      
+      return {
+        ...slot,
+        is_booked: slot.is_booked || isPastTime // 过去的时间也标记为不可预定
+      };
     });
   };
 
@@ -280,15 +283,17 @@ export default function BookingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {filterAvailableSlots(availableSlots?.time_slots || []).map((slot: TimeSlot) => (
+                  {processTimeSlots(availableSlots?.time_slots || []).map((slot: TimeSlot) => (
                     <Button
                       key={slot.start}
                       type="button"
                       variant={selectedTimeSlots.includes(slot.start) ? "default" : "outline"}
-                      className="justify-start"
-                      onClick={() => handleTimeSlotToggle(slot.start)}
+                      className={`justify-start ${slot.is_booked ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : ''}`}
+                      onClick={() => !slot.is_booked && handleTimeSlotToggle(slot.start)}
+                      disabled={slot.is_booked}
                     >
                       {formatTimeSlot(slot.start)}
+                      {slot.is_booked && <span className="ml-1 text-xs">(已预定)</span>}
                     </Button>
                   ))}
                 </div>

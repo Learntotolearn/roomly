@@ -2,6 +2,7 @@
 
 import { useAppContext } from '@/lib/context/app-context';
 import Navigation from '@/components/navigation';
+import { Loader2 } from 'lucide-react';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -13,7 +14,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }

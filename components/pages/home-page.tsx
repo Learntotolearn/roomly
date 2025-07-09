@@ -5,10 +5,11 @@ import { roomApi } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, MapPin, Calendar } from 'lucide-react';
-import Link from 'next/link';
+import { Users, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
+  const router = useRouter();
   const { data: rooms, isLoading, error } = useQuery({
     queryKey: ['rooms'],
     queryFn: roomApi.getAll,
@@ -17,7 +18,7 @@ export default function HomePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
@@ -71,18 +72,19 @@ export default function HomePage() {
               )}
               
               <div className="pt-4">
-                <Link 
-                  href={`/booking?room=${room.id}`}
-                  className="w-full"
+                <Button 
+                  className="w-full" 
+                  disabled={!room.is_open}
+                  onClick={() => {
+                    if (!room.is_open) {
+                      alert('会议室已关闭');
+                    }
+                    router.push(`/booking?room=${room.id}`);
+                  }}
                 >
-                  <Button 
-                    className="w-full" 
-                    disabled={!room.is_open}
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    预定此会议室
-                  </Button>
-                </Link>
+                  <Calendar className="w-4 h-4 mr-2" />
+                  预定此会议室
+                </Button>
               </div>
             </CardContent>
           </Card>

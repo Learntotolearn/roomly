@@ -6,7 +6,7 @@ import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, CalendarOff, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Booking } from '@/lib/types';
 
@@ -58,7 +58,7 @@ export default function MyBookingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
@@ -98,7 +98,10 @@ export default function MyBookingsPage() {
                 <div key={booking.id} className="border rounded-lg p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                      <div className="flex items-center flex-wrap space-x-4">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                        <div className="flex items-center -mr-1">
+                          <Badge variant="default">有效</Badge>
+                        </div>
                         <div className="flex items-center">
                           <MapPin className="w-4 h-4 mr-1 text-gray-500" />
                           <span className="font-medium">{booking.room.name}</span>
@@ -119,8 +122,7 @@ export default function MyBookingsPage() {
                         预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="default">有效</Badge>
+                    <div className="flex items-center space-x-2 ml-4">
                       <Button
                         variant="outline"
                         size="sm"
@@ -144,7 +146,7 @@ export default function MyBookingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <X className="w-5 h-5 mr-2" />
+              <CalendarOff className="w-5 h-5 mr-2" />
               已取消预定 ({cancelledBookings.length})
             </CardTitle>
           </CardHeader>
@@ -154,7 +156,7 @@ export default function MyBookingsPage() {
                 <div key={booking.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                      <div className="flex items-center flex-wrap space-x-4">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                         <div className="flex items-center">
                           <MapPin className="w-4 h-4 mr-1 text-gray-500" />
                           <span className="font-medium text-gray-600">{booking.room.name}</span>

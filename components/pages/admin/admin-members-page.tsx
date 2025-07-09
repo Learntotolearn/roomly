@@ -37,7 +37,8 @@ import {
   Edit, 
   Trash2, 
   Shield, 
-  ShieldCheck 
+  ShieldCheck, 
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -149,7 +150,7 @@ export default function AdminMembersPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
@@ -167,7 +168,7 @@ export default function AdminMembersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">会员管理</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">会员管理</h1>
           <p className="text-gray-600">管理系统中的所有会员信息</p>
         </div>
         
@@ -183,7 +184,7 @@ export default function AdminMembersPage() {
               <DialogTitle>添加新会员</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddMember} className="space-y-4">
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="name">姓名</Label>
                 <Input
                   id="name"
@@ -303,7 +304,7 @@ export default function AdminMembersPage() {
             <DialogTitle>编辑会员</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditMember} className="space-y-4">
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="edit-name">姓名</Label>
               <Input
                 id="edit-name"

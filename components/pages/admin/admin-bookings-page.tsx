@@ -34,7 +34,8 @@ import {
   FileText, 
   Download,
   Filter,
-  Search
+  Search,
+  Loader2
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -159,7 +160,7 @@ export default function AdminBookingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
@@ -177,7 +178,7 @@ export default function AdminBookingsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">预定管理</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">预定管理</h1>
           <p className="text-gray-600">管理系统中的所有预定记录</p>
         </div>
         
@@ -232,8 +233,8 @@ export default function AdminBookingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 2xl:gap-8">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="search">搜索</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -246,10 +247,10 @@ export default function AdminBookingsPage() {
                 />
               </div>
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="status">状态</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择状态" />
                 </SelectTrigger>
                 <SelectContent>
@@ -259,10 +260,10 @@ export default function AdminBookingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="sort">排序方式</Label>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择排序方式" />
                 </SelectTrigger>
                 <SelectContent>
@@ -273,10 +274,10 @@ export default function AdminBookingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="order">排序顺序</Label>
               <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择排序顺序" />
                 </SelectTrigger>
                 <SelectContent>

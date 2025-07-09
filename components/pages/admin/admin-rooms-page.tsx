@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { 
   Dialog, 
   DialogContent, 
@@ -39,7 +40,8 @@ import {
   Trash2, 
   Eye, 
   EyeOff,
-  Users
+  Users,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -155,7 +157,7 @@ export default function AdminRoomsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
   }
@@ -173,7 +175,7 @@ export default function AdminRoomsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">会议室管理</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">会议室管理</h1>
           <p className="text-gray-600">管理系统中的所有会议室</p>
         </div>
         
@@ -189,7 +191,7 @@ export default function AdminRoomsPage() {
               <DialogTitle>添加新会议室</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddRoom} className="space-y-4">
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="name">会议室名称</Label>
                 <Input
                   id="name"
@@ -200,7 +202,7 @@ export default function AdminRoomsPage() {
                   required
                 />
               </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="description">描述</Label>
                 <Textarea
                   id="description"
@@ -210,7 +212,7 @@ export default function AdminRoomsPage() {
                   rows={3}
                 />
               </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="capacity">容纳人数</Label>
                 <Input
                   id="capacity"
@@ -222,11 +224,10 @@ export default function AdminRoomsPage() {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <input
+                <Switch
                   id="is_open"
-                  type="checkbox"
                   checked={formData.is_open}
-                  onChange={(e) => setFormData({ ...formData, is_open: e.target.checked })}
+                  onCheckedChange={(checked: boolean) => setFormData({ ...formData, is_open: checked })}
                 />
                 <Label htmlFor="is_open">开放状态</Label>
               </div>
@@ -341,7 +342,7 @@ export default function AdminRoomsPage() {
             <DialogTitle>编辑会议室</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditRoom} className="space-y-4">
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="edit-name">会议室名称</Label>
               <Input
                 id="edit-name"
@@ -352,7 +353,7 @@ export default function AdminRoomsPage() {
                 required
               />
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="edit-description">描述</Label>
               <Textarea
                 id="edit-description"
@@ -362,7 +363,7 @@ export default function AdminRoomsPage() {
                 rows={3}
               />
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="edit-capacity">容纳人数</Label>
               <Input
                 id="edit-capacity"
@@ -374,11 +375,10 @@ export default function AdminRoomsPage() {
               />
             </div>
             <div className="flex items-center space-x-2">
-              <input
+              <Switch
                 id="edit-is_open"
-                type="checkbox"
                 checked={formData.is_open}
-                onChange={(e) => setFormData({ ...formData, is_open: e.target.checked })}
+                onCheckedChange={(checked: boolean) => setFormData({ ...formData, is_open: checked })}
               />
               <Label htmlFor="edit-is_open">开放状态</Label>
             </div>

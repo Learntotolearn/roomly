@@ -1,0 +1,9 @@
+services:
+  roomly:
+    image: "1300775666/roomly:0.0.1"
+    volumes:
+      - roomly_data:/web/db
+    restart: unless-stopped
+
+volumes:
+  roomly_data:

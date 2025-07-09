@@ -1,6 +1,6 @@
 import { Member, Room, Booking, BookingRequest, AvailableSlots } from './types';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 // 基础API调用函数
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

@@ -97,14 +97,14 @@ export default function AdminMembersPage() {
     },
   });
 
-  // 处理添加会员
+  // 处理添加会员 TODO: 没有添加会员功能
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name.trim()) {
-      createMemberMutation.mutate({
+      /* createMemberMutation.mutate({
         name: formData.name.trim(),
         is_admin: formData.is_admin,
-      });
+      }); */
     }
   };
 

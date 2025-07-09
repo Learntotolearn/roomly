@@ -2,6 +2,7 @@
 export interface Member {
   id: number;
   name: string;
+  dootask_id: number;
   is_admin: boolean;
   created_at: string;
   updated_at: string;

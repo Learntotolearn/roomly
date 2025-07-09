@@ -26,6 +26,9 @@ export const memberApi = {
   
   // 获取单个会员
   get: (id: number) => apiCall<Member>(`/members/${id}`),
+
+  // 根据dootask_id获取会员
+  getForDootaskId: (dootaskId: number) => apiCall<Member>(`/members/${dootaskId}/dootask`),
   
   // 创建会员
   create: (member: Omit<Member, 'id' | 'created_at' | 'updated_at'>) =>

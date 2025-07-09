@@ -98,7 +98,7 @@ export default function MyBookingsPage() {
                 <div key={booking.id} className="border rounded-lg p-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center flex-wrap space-x-4">
                         <div className="flex items-center">
                           <MapPin className="w-4 h-4 mr-1 text-gray-500" />
                           <span className="font-medium">{booking.room.name}</span>
@@ -154,7 +154,7 @@ export default function MyBookingsPage() {
                 <div key={booking.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center flex-wrap space-x-4">
                         <div className="flex items-center">
                           <MapPin className="w-4 h-4 mr-1 text-gray-500" />
                           <span className="font-medium text-gray-600">{booking.room.name}</span>

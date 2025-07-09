@@ -21,19 +21,21 @@ export default function BookingPage() {
   const queryClient = useQueryClient();
   const { currentMember } = useAppContext();
   
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  // 从URL参数初始化选中的会议室ID
+  const initialRoomId = searchParams.get('room') ? parseInt(searchParams.get('room')!) : null;
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(initialRoomId);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
-  // 从URL参数获取房间ID
+  // 从URL参数获取房间ID（保留以防URL参数变化）
   useEffect(() => {
     const roomId = searchParams.get('room');
-    if (roomId) {
+    if (roomId && parseInt(roomId) !== selectedRoomId) {
       setSelectedRoomId(parseInt(roomId));
     }
-  }, [searchParams]);
+  }, [searchParams, selectedRoomId]);
 
   // 获取会议室列表
   const { data: rooms } = useQuery({
@@ -59,8 +61,13 @@ export default function BookingPage() {
   const createBookingMutation = useMutation({
     mutationFn: (bookingData: BookingRequest) => bookingApi.create(bookingData),
     onSuccess: () => {
+      // 失效相关的查询缓存
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
+      if (currentMember) {
+        queryClient.invalidateQueries({ queryKey: ['member-bookings', currentMember.id] });
+      }
       router.push('/my-bookings');
     },
     onError: (error: Error) => {
@@ -152,6 +159,31 @@ export default function BookingPage() {
     const endMinutes = (minutes + 30) % 60;
     const end = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
     return `${start} - ${end}`;
+  };
+
+  // 过滤掉当前时间之前的时间段
+  const filterAvailableSlots = (slots: TimeSlot[]) => {
+    if (!selectedDate) return slots;
+    
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const isToday = selectedDate === today;
+    
+    if (!isToday) {
+      return slots;
+    }
+    
+    // 如果是今天，过滤掉当前时间之前的时间段
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    return slots.filter(slot => {
+      const [slotHours, slotMinutes] = slot.start.split(':').map(Number);
+      // 如果时间段开始时间早于当前时间，则过滤掉
+      if (slotHours < currentHours) return false;
+      if (slotHours === currentHours && slotMinutes < currentMinutes) return false;
+      return true;
+    });
   };
 
   return (
@@ -248,7 +280,7 @@ export default function BookingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {availableSlots?.time_slots?.map((slot: TimeSlot) => (
+                  {filterAvailableSlots(availableSlots?.time_slots || []).map((slot: TimeSlot) => (
                     <Button
                       key={slot.start}
                       type="button"

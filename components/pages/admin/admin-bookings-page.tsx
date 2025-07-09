@@ -35,9 +35,12 @@ import {
   Download,
   Filter,
   Search,
-  Loader2
+  Loader2,
+  Timer
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { calculateDuration, formatDuration } from '@/lib/utils';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function AdminBookingsPage() {
   const queryClient = useQueryClient();
@@ -45,6 +48,8 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [detail, setDetail] = useState<Booking | null>(null);
 
   // 获取所有预定记录
   const { data: bookings, isLoading, error } = useQuery({
@@ -121,6 +126,9 @@ export default function AdminBookingsPage() {
           bValue = b.id;
       }
 
+      if (a.status === 'cancelled') return 1;
+      if (b.status === 'cancelled') return -1;
+
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
@@ -154,6 +162,9 @@ export default function AdminBookingsPage() {
 
   // 格式化时间
   const formatTime = (startTime: string, endTime: string) => {
+    if (endTime === '00:00') {
+      endTime = '24:00';
+    }
     return `${startTime} - ${endTime}`;
   };
 
@@ -307,6 +318,7 @@ export default function AdminBookingsPage() {
                 <TableHead>会员</TableHead>
                 <TableHead>日期</TableHead>
                 <TableHead>时间</TableHead>
+              <TableHead>时长</TableHead>
                 <TableHead>理由</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>创建时间</TableHead>
@@ -341,6 +353,12 @@ export default function AdminBookingsPage() {
                       {formatTime(booking.start_time, booking.end_time)}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Timer className="w-4 h-4 mr-1 text-gray-500" />
+                      {formatDuration(calculateDuration(booking.start_time, booking.end_time))}
+                    </div>
+                  </TableCell>
                   <TableCell className="max-w-xs truncate">
                     {booking.reason}
                   </TableCell>
@@ -360,6 +378,15 @@ export default function AdminBookingsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setDetail(booking);
+                            setDetailDialogOpen(true);
+                          }}
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          查看详情
+                        </DropdownMenuItem>
                         {booking.status === 'active' && (
                           <DropdownMenuItem 
                             onClick={() => handleCancelBooking(booking)}
@@ -378,6 +405,49 @@ export default function AdminBookingsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* 详情弹窗 */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>预定详情</DialogTitle>
+            {detail && (
+              <div className="space-y-2 text-sm text-gray-700 mt-4">
+                <div>
+                  <strong>会议室：</strong>{detail.room.name}
+                </div>
+                <div>
+                  <strong>预定人：</strong>{detail.member.name}
+                </div>
+                <div>
+                  <strong>日期：</strong>{formatDate(detail.date)}
+                </div>
+                <div>
+                  <strong>时间：</strong>{formatTime(detail.start_time, detail.end_time)}
+                </div>
+                <div>
+                  <strong>时长：</strong>{formatDuration(calculateDuration(detail.start_time, detail.end_time))}
+                </div>
+                <div>
+                  <strong>状态：</strong>
+                  <Badge variant={detail.status === 'active' ? "default" : "secondary"}>
+                    {detail.status === 'active' ? '有效' : '已取消'}
+                  </Badge>
+                </div>
+                <div>
+                  <strong>申请理由：</strong>{detail.reason}
+                </div>
+                <div>
+                  <strong>创建时间：</strong>{format(parseISO(detail.created_at), 'yyyy-MM-dd HH:mm')}
+                </div>
+              </div>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

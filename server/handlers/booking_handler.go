@@ -213,7 +213,29 @@ func filterAvailableSlots(allSlots []models.TimeSlot, bookings []models.Booking)
 
 // 检查时间段是否重叠
 func isTimeSlotOverlap(slot models.TimeSlot, booking models.Booking) bool {
-	return slot.Start < booking.EndTime && slot.End > booking.StartTime
+	// 处理跨越午夜的情况
+	slotStart := timeToMinutes(slot.Start)
+	slotEnd := timeToMinutes(slot.End)
+	bookingStart := timeToMinutes(booking.StartTime)
+	bookingEnd := timeToMinutes(booking.EndTime)
+
+	// 如果时间段跨越午夜，调整结束时间
+	if slotEnd == 0 && slotStart > 0 {
+		slotEnd = 24 * 60 // 24:00 转换为分钟
+	}
+	if bookingEnd == 0 && bookingStart > 0 {
+		bookingEnd = 24 * 60 // 24:00 转换为分钟
+	}
+
+	return slotStart < bookingEnd && slotEnd > bookingStart
+}
+
+// 将时间字符串转换为分钟数
+func timeToMinutes(timeStr string) int {
+	parts := strings.Split(timeStr, ":")
+	hour, _ := strconv.Atoi(parts[0])
+	minute, _ := strconv.Atoi(parts[1])
+	return hour*60 + minute
 }
 
 // 检查时间段是否连续
@@ -233,17 +255,24 @@ func areTimeSlotsConsecutive(timeSlots []string) bool {
 
 // 检查时间段是否可用
 func areSlotsAvailable(roomID uint, date string, timeSlots []string) bool {
-	for _, slot := range timeSlots {
-		endTime := getEndTime(slot)
+	// 获取该日期该会议室的所有预定
+	var bookings []models.Booking
+	if err := database.DB.Where("room_id = ? AND date = ? AND status = ?", roomID, date, "active").Find(&bookings).Error; err != nil {
+		return false
+	}
 
-		var count int64
-		database.DB.Model(&models.Booking{}).
-			Where("room_id = ? AND date = ? AND status = ? AND start_time < ? AND end_time > ?",
-				roomID, date, "active", endTime, slot).
-			Count(&count)
+	// 检查每个时间段是否与现有预定重叠
+	for _, slotTime := range timeSlots {
+		slot := models.TimeSlot{
+			Start: slotTime,
+			End:   getEndTime(slotTime),
+		}
 
-		if count > 0 {
-			return false
+		// 检查是否与任何预定重叠
+		for _, booking := range bookings {
+			if isTimeSlotOverlap(slot, booking) {
+				return false
+			}
 		}
 	}
 

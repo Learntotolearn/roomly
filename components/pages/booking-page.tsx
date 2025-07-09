@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Users, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { format, addDays, isToday } from 'date-fns';
 import { TimeSlot, BookingRequest } from '@/lib/types';
+import { formatDuration } from '@/lib/utils';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -161,7 +162,7 @@ export default function BookingPage() {
     return `${start} - ${end}`;
   };
 
-  // 过滤掉当前时间之前的时间段，但保留已预定时间段用于显示
+  // 处理时间段，区分过去时间和已预定时间
   const processTimeSlots = (slots: TimeSlot[]) => {
     if (!selectedDate) return slots;
     
@@ -169,10 +170,10 @@ export default function BookingPage() {
     const isToday = selectedDate === today;
     
     if (!isToday) {
-      return slots;
+      return slots.map(slot => ({ ...slot, isPastTime: false }));
     }
     
-    // 如果是今天，标记当前时间之前的时间段为不可选
+    // 如果是今天，标记当前时间之前的时间段
     const now = new Date();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
@@ -184,7 +185,7 @@ export default function BookingPage() {
       
       return {
         ...slot,
-        is_booked: slot.is_booked || isPastTime // 过去的时间也标记为不可预定
+        isPastTime
       };
     });
   };
@@ -283,19 +284,32 @@ export default function BookingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {processTimeSlots(availableSlots?.time_slots || []).map((slot: TimeSlot) => (
-                    <Button
-                      key={slot.start}
-                      type="button"
-                      variant={selectedTimeSlots.includes(slot.start) ? "default" : "outline"}
-                      className={`justify-start ${slot.is_booked ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : ''}`}
-                      onClick={() => !slot.is_booked && handleTimeSlotToggle(slot.start)}
-                      disabled={slot.is_booked}
-                    >
-                      {formatTimeSlot(slot.start)}
-                      {slot.is_booked && <span className="ml-1 text-xs">(已预定)</span>}
-                    </Button>
-                  ))}
+                  {processTimeSlots(availableSlots?.time_slots || []).map((slot: TimeSlot & { isPastTime?: boolean }) => {
+                    const isDisabled = slot.is_booked || slot.isPastTime;
+                    const getButtonClass = () => {
+                      if (slot.is_booked) {
+                        return 'opacity-60 cursor-not-allowed bg-red-50 text-red-400 border-red-200';
+                      }
+                      if (slot.isPastTime) {
+                        return 'opacity-40 cursor-not-allowed bg-gray-50 text-gray-400';
+                      }
+                      return '';
+                    };
+                    
+                    return (
+                      <Button
+                        key={slot.start}
+                        type="button"
+                        variant={selectedTimeSlots.includes(slot.start) ? "default" : "outline"}
+                        className={`justify-start ${getButtonClass()}`}
+                        onClick={() => !isDisabled && handleTimeSlotToggle(slot.start)}
+                        disabled={isDisabled}
+                      >
+                        {formatTimeSlot(slot.start)}
+                        {slot.is_booked && <span className="ml-1 text-xs">(已预定)</span>}
+                      </Button>
+                    );
+                  })}
                 </div>
               )}
               
@@ -306,7 +320,7 @@ export default function BookingPage() {
                     {selectedTimeSlots.length > 1 && ` - ${formatTimeSlot(selectedTimeSlots[selectedTimeSlots.length - 1]).split(' - ')[1]}`}
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    总时长: {selectedTimeSlots.length * 0.5} 小时
+                    总时长: {formatDuration(selectedTimeSlots.length * 0.5)}
                   </p>
                 </div>
               )}

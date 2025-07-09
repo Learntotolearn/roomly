@@ -6,9 +6,10 @@ import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, X, CalendarOff, Loader2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Booking } from '@/lib/types';
+import { calculateDuration, formatDuration } from '@/lib/utils';
 
 export default function MyBookingsPage() {
   const { currentMember } = useAppContext();
@@ -48,12 +49,27 @@ export default function MyBookingsPage() {
 
   // 格式化时间
   const formatTime = (startTime: string, endTime: string) => {
+    if (endTime === '00:00') {
+      endTime = '24:00';
+    }
     return `${startTime} - ${endTime}`;
   };
 
   // 按状态分组预定
-  const activeBookings = bookings?.filter(booking => booking.status === 'active') || [];
-  const cancelledBookings = bookings?.filter(booking => booking.status === 'cancelled') || [];
+  const activeBookings = (bookings?.filter(booking => booking.status === 'active') || []).sort(
+    (a, b) => {
+      const aDate = new Date(`${a.date} ${a.start_time}`);
+      const bDate = new Date(`${b.date} ${b.start_time}`);
+      return aDate.getTime() - bDate.getTime();
+    }
+  );
+  const cancelledBookings = (bookings?.filter(booking => booking.status === 'cancelled') || []).sort(
+    (a, b) => {
+      const aDate = new Date(`${a.date} ${a.start_time}`);
+      const bDate = new Date(`${b.date} ${b.start_time}`);
+      return aDate.getTime() - bDate.getTime();
+    }
+  );
 
   if (isLoading) {
     return (
@@ -114,6 +130,10 @@ export default function MyBookingsPage() {
                           <Clock className="w-4 h-4 mr-1 text-gray-500" />
                           <span>{formatTime(booking.start_time, booking.end_time)}</span>
                         </div>
+                        <div className="flex items-center">
+                          <Timer className="w-4 h-4 mr-1 text-gray-500" />
+                          <span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
+                        </div>
                       </div>
                       <div className="text-sm text-gray-600">
                         <strong>申请理由:</strong> {booking.reason}
@@ -169,6 +189,10 @@ export default function MyBookingsPage() {
                           <Clock className="w-4 h-4 mr-1 text-gray-500" />
                           <span className="text-gray-600">{formatTime(booking.start_time, booking.end_time)}</span>
                         </div>
+                        <div className="flex items-center">
+                          <Timer className="w-4 h-4 mr-1 text-gray-500" />
+                          <span className="text-gray-600">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
+                        </div>
                       </div>
                       <div className="text-sm text-gray-500">
                         <strong>申请理由:</strong> {booking.reason}
@@ -223,11 +247,7 @@ export default function MyBookingsPage() {
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
                 {activeBookings.reduce((total, booking) => {
-                  const [startHours, startMinutes] = booking.start_time.split(':').map(Number);
-                  const [endHours, endMinutes] = booking.end_time.split(':').map(Number);
-                  const startTime = startHours * 60 + startMinutes;
-                  const endTime = endHours * 60 + endMinutes;
-                  return total + (endTime - startTime) / 60;
+                  return total + calculateDuration(booking.start_time, booking.end_time);
                 }, 0)}
               </div>
               <div className="text-sm text-gray-600">总时长(小时)</div>

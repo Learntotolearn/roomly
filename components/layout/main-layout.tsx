@@ -25,10 +25,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             无法加载用户信息
           </h2>
-          <p className="text-gray-600 mb-8">
+          <p className="text-gray-600 dark:text-white mb-8">
             请确保后端服务正常运行并重新加载页面
           </p>
           {/* 关闭按钮 */}
@@ -43,7 +43,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
       <Navigation isAdmin={isAdmin} currentMember={currentMember.name} />
       <main className="container mx-auto px-4 py-8">
         {children}

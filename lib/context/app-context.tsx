@@ -3,13 +3,16 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Member } from '@/lib/types';
 import { memberApi } from '@/lib/api';
-import { getUserInfo } from '@dootask/tools';
+import { getThemeName, getUserInfo } from '@dootask/tools';
+import AlertLayout, { AlertLayoutProps, AlertProps } from '@/components/layout/alert';
 
 interface AppContextType {
   currentMember: Member | null;
   setCurrentMember: (member: Member | null) => void;
   isAdmin: boolean;
   loading: boolean;
+  Alert: (message: string | AlertProps) => void;
+  Confirm: (message: string | AlertProps) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -17,7 +20,19 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState<AlertLayoutProps[]>([]);
 
+  // 初始化主题
+  const initTheme = useCallback(async () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const theme = await getThemeName();
+    document.documentElement.classList.add(theme);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, []);
+
+  // 初始化用户信息
   const initUser = useCallback(async () => {
     try {
       // 获取用户信息
@@ -54,10 +69,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    initUser();
-  }, [initUser]);
+  // 弹出alert或confirm
+  const alertConfirm = useCallback((type: 'alert' | 'confirm', message: string | AlertProps) => {
+    const id = crypto.randomUUID();
+    if (typeof message === 'string') {
+      message = { message };
+    }
+    setAlerts([...alerts, { 
+      id, 
+      type,
+      onConfirm: () => {
+        setAlerts(alerts.filter(alert => alert.id !== id));
+      },
+      onClose: () => {
+        setAlerts(alerts.filter(alert => alert.id !== id));
+      },
+      ...message,
+    }]);
+  }, [alerts]);
 
+  // 初始化主题和用户信息
+  useEffect(() => {
+    initTheme();
+    initUser();
+  }, [initTheme, initUser]);
+
+  // 判断是否是管理员
   const isAdmin = currentMember?.is_admin || false;
 
   return (
@@ -67,9 +104,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCurrentMember,
         isAdmin,
         loading,
+        Alert: (message: string | AlertProps) => alertConfirm('alert', message),
+        Confirm: (message: string | AlertProps) => alertConfirm('confirm', message),
       }}
     >
       {children}
+
+      {/* 弹出框 */}
+      <AlertLayout alerts={alerts}/>
     </AppContext.Provider>
   );
 }

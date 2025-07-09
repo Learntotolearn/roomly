@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/lib/context/query-provider";
 import { AppProvider } from "@/lib/context/app-context";
+import { getSystemTheme } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" className={getSystemTheme()}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -12,7 +12,7 @@ import { Booking } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 
 export default function MyBookingsPage() {
-  const { currentMember } = useAppContext();
+  const { currentMember, Confirm } = useAppContext();
   const queryClient = useQueryClient();
 
   // 获取我的预定记录
@@ -33,9 +33,13 @@ export default function MyBookingsPage() {
 
   // 处理取消预定
   const handleCancelBooking = (bookingId: number) => {
-    if (window.confirm('确定要取消这个预定吗？')) {
-      cancelBookingMutation.mutate(bookingId);
-    }
+    Confirm({
+      title: '取消预定',
+      message: '确定要取消这个预定吗？',
+      onConfirm: () => {
+        cancelBookingMutation.mutate(bookingId);
+      },
+    });
   };
 
   // 格式化日期
@@ -82,8 +86,8 @@ export default function MyBookingsPage() {
   if (error) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h2>
-        <p className="text-gray-600">无法加载预定记录，请检查网络连接</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">加载失败</h2>
+        <p className="text-gray-600 dark:text-white">无法加载预定记录，请检查网络连接</p>
       </div>
     );
   }
@@ -91,8 +95,8 @@ export default function MyBookingsPage() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">我的预定</h1>
-        <p className="text-gray-600">查看和管理您的会议室预定记录</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">我的预定</h1>
+        <p className="text-gray-600 dark:text-white">查看和管理您的会议室预定记录</p>
       </div>
 
       {/* 有效预定 */}
@@ -106,12 +110,12 @@ export default function MyBookingsPage() {
         <CardContent>
           {activeBookings.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">暂无有效预定</p>
+              <p className="text-gray-500 dark:text-zinc-300">暂无有效预定</p>
             </div>
           ) : (
             <div className="space-y-4">
               {activeBookings.map((booking: Booking) => (
-                <div key={booking.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                <div key={booking.id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-zinc-800">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
@@ -119,26 +123,26 @@ export default function MyBookingsPage() {
                           <Badge variant="default">有效</Badge>
                         </div>
                         <div className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1 text-gray-500" />
+                          <MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
                           <span className="font-medium">{booking.room.name}</span>
                         </div>
                         <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1 text-gray-500" />
+                          <Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
                           <span>{formatDate(booking.date)}</span>
                         </div>
                         <div className="flex items-center">
-                          <Clock className="w-4 h-4 mr-1 text-gray-500" />
+                          <Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
                           <span>{formatTime(booking.start_time, booking.end_time)}</span>
                         </div>
                         <div className="flex items-center">
-                          <Timer className="w-4 h-4 mr-1 text-gray-500" />
+                          <Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
                           <span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600 dark:text-zinc-300">
                         <strong>申请理由:</strong> {booking.reason}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-zinc-300">
                         预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
                       </div>
                     </div>
@@ -173,31 +177,31 @@ export default function MyBookingsPage() {
           <CardContent>
             <div className="space-y-4">
               {cancelledBookings.map((booking: Booking) => (
-                <div key={booking.id} className="border rounded-lg p-4 bg-gray-50">
+                <div key={booking.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-zinc-800">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                         <div className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1 text-gray-500" />
-                          <span className="font-medium text-gray-600">{booking.room.name}</span>
+                          <MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="font-medium text-gray-600 dark:text-zinc-300">{booking.room.name}</span>
                         </div>
                         <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                          <span className="text-gray-600">{formatDate(booking.date)}</span>
+                          <Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span>
                         </div>
                         <div className="flex items-center">
-                          <Clock className="w-4 h-4 mr-1 text-gray-500" />
-                          <span className="text-gray-600">{formatTime(booking.start_time, booking.end_time)}</span>
+                          <Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span>
                         </div>
                         <div className="flex items-center">
-                          <Timer className="w-4 h-4 mr-1 text-gray-500" />
-                          <span className="text-gray-600">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
+                          <Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-zinc-300">
                         <strong>申请理由:</strong> {booking.reason}
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-400 dark:text-zinc-300">
                         预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
                       </div>
                     </div>
@@ -218,7 +222,7 @@ export default function MyBookingsPage() {
               <div className="text-2xl font-bold text-blue-600">
                 {bookings?.length || 0}
               </div>
-              <div className="text-sm text-gray-600">总预定数</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">总预定数</div>
             </div>
           </CardContent>
         </Card>
@@ -228,7 +232,7 @@ export default function MyBookingsPage() {
               <div className="text-2xl font-bold text-green-600">
                 {activeBookings.length}
               </div>
-              <div className="text-sm text-gray-600">有效预定</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">有效预定</div>
             </div>
           </CardContent>
         </Card>
@@ -238,7 +242,7 @@ export default function MyBookingsPage() {
               <div className="text-2xl font-bold text-red-600">
                 {cancelledBookings.length}
               </div>
-              <div className="text-sm text-gray-600">已取消</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">已取消</div>
             </div>
           </CardContent>
         </Card>
@@ -250,7 +254,7 @@ export default function MyBookingsPage() {
                   return total + calculateDuration(booking.start_time, booking.end_time);
                 }, 0)}
               </div>
-              <div className="text-sm text-gray-600">总时长(小时)</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">总时长(小时)</div>
             </div>
           </CardContent>
         </Card>

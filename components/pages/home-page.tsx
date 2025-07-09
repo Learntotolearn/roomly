@@ -26,10 +26,10 @@ export default function HomePage() {
   if (error) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
           加载失败
         </h2>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-white">
           无法加载会议室信息，请检查网络连接
         </p>
       </div>
@@ -39,10 +39,10 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           会议室预定系统
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-white">
           欢迎使用会议室预定系统，请选择会议室进行预定
         </p>
       </div>
@@ -59,13 +59,13 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-zinc-300">
                 <Users className="w-4 h-4 mr-2" />
                 可容纳 {room.capacity} 人
               </div>
               
               {room.description && (
-                <div className="flex items-start text-sm text-gray-600">
+                <div className="flex items-start text-sm text-gray-600 dark:text-zinc-300">
                   <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
                   <span>{room.description}</span>
                 </div>
@@ -76,9 +76,6 @@ export default function HomePage() {
                   className="w-full" 
                   disabled={!room.is_open}
                   onClick={() => {
-                    if (!room.is_open) {
-                      alert('会议室已关闭');
-                    }
                     router.push(`/booking?room=${room.id}`);
                   }}
                 >
@@ -93,12 +90,9 @@ export default function HomePage() {
 
       {rooms?.length === 0 && (
         <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             暂无会议室
           </h3>
-          <p className="text-gray-600">
-            系统中还没有会议室信息
-          </p>
         </div>
       )}
     </div>

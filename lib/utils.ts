@@ -34,3 +34,11 @@ export function formatDuration(hours: number): string {
   const minutes = Math.round((hours - wholeHours) * 60);
   return `${wholeHours}小时${minutes}分钟`;
 }
+
+// 获取系统主题
+export function getSystemTheme() {
+  if (typeof window === 'undefined') {
+    return 'light';
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}

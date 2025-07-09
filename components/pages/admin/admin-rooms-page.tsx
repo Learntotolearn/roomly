@@ -44,8 +44,10 @@ import {
   Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAppContext } from '@/lib/context/app-context';
 
 export default function AdminRoomsPage() {
+  const { Confirm } = useAppContext();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -132,9 +134,13 @@ export default function AdminRoomsPage() {
 
   // 处理删除会议室
   const handleDeleteRoom = (room: Room) => {
-    if (window.confirm(`确定要删除会议室 "${room.name}" 吗？`)) {
-      deleteRoomMutation.mutate(room.id);
-    }
+    Confirm({
+      title: '删除会议室',
+      message: `确定要删除会议室 "${room.name}" 吗？`,
+      onConfirm: () => {
+        deleteRoomMutation.mutate(room.id);
+      },
+    });
   };
 
   // 处理状态切换
@@ -165,8 +171,8 @@ export default function AdminRoomsPage() {
   if (error) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h2>
-        <p className="text-gray-600">无法加载会议室信息，请检查网络连接</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">加载失败</h2>
+        <p className="text-gray-600 dark:text-white">无法加载会议室信息，请检查网络连接</p>
       </div>
     );
   }
@@ -175,8 +181,8 @@ export default function AdminRoomsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">会议室管理</h1>
-          <p className="text-gray-600">管理系统中的所有会议室</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">会议室管理</h1>
+          <p className="text-gray-600 dark:text-white">管理系统中的所有会议室</p>
         </div>
         
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

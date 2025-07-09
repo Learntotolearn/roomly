@@ -42,8 +42,8 @@ export default function AdminMembersPage() {
   if (error) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h2>
-        <p className="text-gray-600">无法加载会员信息，请检查网络连接</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">加载失败</h2>
+        <p className="text-gray-600 dark:text-white">无法加载会员信息，请检查网络连接</p>
       </div>
     );
   }
@@ -52,8 +52,8 @@ export default function AdminMembersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">会员管理</h1>
-          <p className="text-gray-600">管理系统中的所有会员信息</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">会员管理</h1>
+          <p className="text-gray-600 dark:text-white">管理系统中的所有会员信息</p>
         </div>
         <Button disabled={isRefreshing} onClick={async () => {
           setIsRefreshing(true);

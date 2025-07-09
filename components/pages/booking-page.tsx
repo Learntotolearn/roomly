@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, MapPin, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, Clock, Users, MapPin, AlertCircle, Loader2, CalendarCheck2 } from 'lucide-react';
 import { format, addDays, isToday } from 'date-fns';
 import { TimeSlot, BookingRequest } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
@@ -193,8 +193,8 @@ export default function BookingPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">预定会议室</h1>
-        <p className="text-gray-600">请选择会议室、日期和时间段进行预定</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">预定会议室</h1>
+        <p className="text-gray-600 dark:text-white">请选择会议室、日期和时间段进行预定</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -229,13 +229,13 @@ export default function BookingPage() {
             </Select>
             
             {selectedRoom && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center text-sm text-blue-800">
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                <div className="flex items-center text-sm text-blue-800 dark:text-blue-200">
                   <Users className="w-4 h-4 mr-2" />
                   可容纳 {selectedRoom.capacity} 人
                 </div>
                 {selectedRoom.description && (
-                  <p className="mt-2 text-sm text-blue-700">{selectedRoom.description}</p>
+                  <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">{selectedRoom.description}</p>
                 )}
               </div>
             )}
@@ -360,7 +360,17 @@ export default function BookingPage() {
             size="lg"
             disabled={!selectedRoomId || !selectedDate || selectedTimeSlots.length === 0 || !reason.trim() || createBookingMutation.isPending}
           >
-            {createBookingMutation.isPending ? '预定中...' : '确认预定'}
+            {createBookingMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                预定中...
+              </>
+            ) : (
+              <>
+                <CalendarCheck2 className="w-4 h-4 mr-2" />
+                确认预定
+              </>
+            )}
           </Button>
         </div>
       </form>

@@ -41,8 +41,10 @@ import {
 import { format, parseISO } from 'date-fns';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAppContext } from '@/lib/context/app-context';
 
 export default function AdminBookingsPage() {
+  const { Confirm } = useAppContext();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -68,9 +70,13 @@ export default function AdminBookingsPage() {
 
   // 处理取消预定
   const handleCancelBooking = (booking: Booking) => {
-    if (window.confirm(`确定要取消 ${booking.member.name} 在 ${booking.room.name} 的预定吗？`)) {
-      cancelBookingMutation.mutate(booking.id);
-    }
+    Confirm({
+      title: '取消预定',
+      message: `确定要取消 ${booking.member.name} 在 ${booking.room.name} 的预定吗？`,
+      onConfirm: () => {
+        cancelBookingMutation.mutate(booking.id);
+      },
+    });
   };
 
   // 处理导出
@@ -79,8 +85,14 @@ export default function AdminBookingsPage() {
       ...(statusFilter !== 'all' && { status: statusFilter }),
     };
     
-    const url = exportApi.exportBookings(params);
-    window.open(url, '_blank');
+    Confirm({
+      title: '导出预定记录',
+      message: '确定要导出预定记录吗？',
+      onConfirm: () => {
+        const url = exportApi.exportBookings(params);
+        window.open(url, '_blank');
+      },
+    });
   };
 
   // 过滤和排序逻辑
@@ -179,8 +191,8 @@ export default function AdminBookingsPage() {
   if (error) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">加载失败</h2>
-        <p className="text-gray-600">无法加载预定记录，请检查网络连接</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">加载失败</h2>
+        <p className="text-gray-600 dark:text-white">无法加载预定记录，请检查网络连接</p>
       </div>
     );
   }
@@ -189,8 +201,8 @@ export default function AdminBookingsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">预定管理</h1>
-          <p className="text-gray-600">管理系统中的所有预定记录</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">预定管理</h1>
+          <p className="text-gray-600 dark:text-white">管理系统中的所有预定记录</p>
         </div>
         
         <Button onClick={handleExport}>
@@ -205,7 +217,7 @@ export default function AdminBookingsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-              <div className="text-sm text-gray-600">总预定数</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">总预定数</div>
             </div>
           </CardContent>
         </Card>
@@ -213,7 +225,7 @@ export default function AdminBookingsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-              <div className="text-sm text-gray-600">有效预定</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">有效预定</div>
             </div>
           </CardContent>
         </Card>
@@ -221,7 +233,7 @@ export default function AdminBookingsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">{stats.cancelled}</div>
-              <div className="text-sm text-gray-600">已取消</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">已取消</div>
             </div>
           </CardContent>
         </Card>
@@ -229,7 +241,7 @@ export default function AdminBookingsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{stats.today}</div>
-              <div className="text-sm text-gray-600">今日预定</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">今日预定</div>
             </div>
           </CardContent>
         </Card>

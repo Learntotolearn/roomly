@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@dootask/tools": "^1.0.1",
+    "@dootask/tools": "^1.0.2",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.15",

@@ -3,6 +3,8 @@
 import { useAppContext } from '@/lib/context/app-context';
 import Navigation from '@/components/navigation';
 import { Loader2 } from 'lucide-react';
+import { Button } from '../ui/button';
+import { closeApp } from '@dootask/tools';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -26,9 +28,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             无法加载用户信息
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-8">
             请确保后端服务正常运行并重新加载页面
           </p>
+          {/* 关闭按钮 */}
+          <Button onClick={() => {
+            closeApp()
+          }}>
+            关闭应用
+          </Button>
         </div>
       </div>
     );

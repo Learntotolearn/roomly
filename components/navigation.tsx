@@ -14,6 +14,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { closeApp } from '@dootask/tools';
 
 interface NavigationProps {
   isAdmin: boolean;
@@ -38,11 +39,19 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
   return (
     <nav className="bg-white border-b border-gray-200 px-4 lg:px-6 py-2.5 sticky top-0 z-50">
       <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
-        <Link href="/" className="flex items-center">
-          <span className="self-center text-xl font-semibold whitespace-nowrap">
-            会议室预定系统
-          </span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center sm:hidden">
+            <Button variant="ghost" size="sm" onClick={() => closeApp()}>
+              <X size={20} />
+            </Button>
+          </div>
+          
+          <Link href="/" className="flex items-center">
+            <span className="self-center text-xl font-semibold whitespace-nowrap">
+              会议室预定系统
+            </span>
+          </Link>
+        </div>
         
         <div className="flex items-center lg:order-2">
           <div className="flex items-center gap-2 mr-4">

@@ -56,62 +56,13 @@ jobs:
           cd ..
           echo "Package created: dootask-plugin.tar.gz"
           ls -la dootask-plugin.tar.gz
-          
-      - name: Login to dootask appstore
-        id: login
-        run: |
-          response=$(curl -s 'https://appstore.dootask.com/api/v1/developer/login' \
-            -H 'Content-Type: application/json' \
-            --data-raw '{"username":"${{ secrets.DOOTASK_USERNAME }}","password":"${{ secrets.DOOTASK_PASSWORD }}"}')
-          
-          echo "Login response: $response"
-          
-          token=$(echo "$response" | jq -r '.data.token')
-          code=$(echo "$response" | jq -r '.code')
-          
-          if [ "$code" != "200" ]; then
-            echo "Login failed with code: $code"
-            exit 1
-          fi
-          
-          echo "token=$token" >> $GITHUB_OUTPUT
-          echo "Login successful"
-          
-      - name: Upload plugin to dootask appstore
-        id: upload
-        run: |
-          response=$(curl -s 'https://appstore.dootask.com/api/v1/developer/app/upload' \
-            --header 'Token: ${{ steps.login.outputs.token }}' \
-            --form 'file=@"dootask-plugin.tar.gz"' \
-            --form 'appid="roomly"')
-          
-          echo "Upload response: $response"
-          
-          hash=$(echo "$response" | jq -r '.data.hash')
-          code=$(echo "$response" | jq -r '.code')
-          
-          if [ "$code" != "200" ]; then
-            echo "Upload failed with code: $code"
-            exit 1
-          fi
-          
-          echo "hash=$hash" >> $GITHUB_OUTPUT
-          echo "Upload successful, hash: $hash"
-          
-      - name: Publish to dootask appstore
-        run: |
-          response=$(curl -s 'https://appstore.dootask.com/api/v1/developer/app/publish' \
-            -H 'Content-Type: application/json' \
-            -H 'Token: ${{ steps.login.outputs.token }}' \
-            --data-raw '{"hash":"${{ steps.upload.outputs.hash }}","is_public":true}')
-          
-          echo "Publish response: $response"
-          
-          code=$(echo "$response" | jq -r '.code')
-          
-          if [ "$code" != "200" ]; then
-            echo "Publish failed with code: $code"
-            exit 1
-          fi
-          
-          echo "✅ Successfully published to dootask appstore!"
+
+      - name: Publish to DooTask App Store
+        id: publish
+        uses: dootask/appstore-action@v1
+        with:
+          username: ${{ secrets.DOOTASK_USERNAME }}
+          password: ${{ secrets.DOOTASK_PASSWORD }}
+          appid: 'roomly'
+          package_file: './dootask-plugin.tar.gz'
+          draft: false

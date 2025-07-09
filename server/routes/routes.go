@@ -25,6 +25,7 @@ func SetupRoutes() *gin.Engine {
 		{
 			members.GET("", handlers.GetMembers)
 			members.GET("/:id", handlers.GetMember)
+			members.GET("/:id/dootask", handlers.GetMemberForDootaskId)
 			members.POST("", handlers.CreateMember)
 			members.PUT("/:id", handlers.UpdateMember)
 			members.DELETE("/:id", handlers.DeleteMember)

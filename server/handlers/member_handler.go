@@ -30,6 +30,17 @@ func GetMember(c *gin.Context) {
 	c.JSON(http.StatusOK, member)
 }
 
+// 根据dootask_id获取会员
+func GetMemberForDootaskId(c *gin.Context) {
+	id := c.Param("id")
+	var member models.Member
+	if err := database.DB.Where("dootask_id = ?", id).First(&member).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found"})
+		return
+	}
+	c.JSON(http.StatusOK, member)
+}
+
 // 创建会员
 func CreateMember(c *gin.Context) {
 	var member models.Member

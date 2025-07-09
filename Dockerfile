@@ -58,13 +58,15 @@ COPY --from=builder /web/.next/static/ /web/.next/static/
 COPY --from=builder /web/public/ /web/public/
 
 # 创建启动脚本
-RUN echo '#!/bin/bash
+RUN cat <<'EOF' > /web/start.sh
+#!/bin/bash
 
 # 启动后端
 ./server &
 
 # 启动前端
-node /web/server.js' > /web/start.sh
+node /web/server.js
+EOF
 
 # 设置权限
 RUN chmod +x /web/start.sh

@@ -7,20 +7,24 @@ import { roomApi, bookingApi } from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Calendar } from "@/components/ui/calendar";
 
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, MapPin, AlertCircle, Loader2, CalendarCheck2 } from 'lucide-react';
-import { format, addDays, isToday } from 'date-fns';
+import { Calendar as CalendarIcon, Clock, Users, MapPin, AlertCircle, Loader2, CalendarCheck2, ChevronDownIcon } from 'lucide-react';
+import { addDays, format, isBefore, isToday, startOfDay } from 'date-fns';
 import { TimeSlot, BookingRequest } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { zhCN } from 'date-fns/locale';
 
 export default function BookingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { currentMember } = useAppContext();
+  const [openCalendar, setOpenCalendar] = useState(false);
   
   // 从URL参数初始化选中的会议室ID
   const initialRoomId = searchParams.get('room') ? parseInt(searchParams.get('room')!) : null;
@@ -37,6 +41,13 @@ export default function BookingPage() {
       setSelectedRoomId(parseInt(roomId));
     }
   }, [searchParams, selectedRoomId]);
+
+  // 自动选择当前日期
+  useEffect(() => {
+    if (selectedRoomId && !selectedDate) {
+      setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+    }
+  }, [selectedRoomId, selectedDate]);
 
   // 获取会议室列表
   const { data: rooms } = useQuery({
@@ -75,19 +86,6 @@ export default function BookingPage() {
       setError(error.message || '预定失败');
     },
   });
-
-  // 生成未来30天的日期选项
-  const generateDateOptions = () => {
-    const options = [];
-    for (let i = 0; i <= 30; i++) {
-      const date = addDays(new Date(), i);
-      options.push({
-        value: format(date, 'yyyy-MM-dd'),
-        label: format(date, 'yyyy年MM月dd日') + (isToday(date) ? ' (今天)' : ''),
-      });
-    }
-    return options;
-  };
 
   // 处理时间段选择
   const handleTimeSlotToggle = (timeSlot: string) => {
@@ -247,23 +245,52 @@ export default function BookingPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Calendar className="w-5 h-5 mr-2" />
+                <CalendarIcon className="w-5 h-5 mr-2" />
                 选择日期
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Select value={selectedDate} onValueChange={setSelectedDate}>
-                <SelectTrigger>
-                  <SelectValue placeholder="请选择日期" />
-                </SelectTrigger>
-                <SelectContent>
-                  {generateDateOptions().map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={openCalendar} onOpenChange={setOpenCalendar}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    id="date"
+                    className="min-w-48 flex justify-between items-center font-normal"
+                  >
+                    {selectedDate ? (
+                      <>
+                        {selectedDate}
+                        <span className="ml-2 text-gray-500">
+                          {format(new Date(selectedDate), 'EEEE', { locale: zhCN })}
+                          {isToday(new Date(selectedDate)) && '，今天'}
+                        </span>
+                      </>
+                    ) : "请选择日期"}
+                    <ChevronDownIcon />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    locale={zhCN}
+                    weekStartsOn={0}
+                    selected={selectedDate ? new Date(selectedDate) : undefined}
+                    captionLayout="label"
+                    disabled={(date) => {
+                      // 禁用今天之前的日期和30天之后的日期
+                      const today = startOfDay(new Date());
+                      const maxDate = addDays(today, 30);
+                      return isBefore(date, today) || isBefore(maxDate, date);
+                    }}
+                    onSelect={(date: Date | undefined) => {
+                      if (date) {
+                        setSelectedDate(format(date, 'yyyy-MM-dd'))
+                        setOpenCalendar(false)
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </CardContent>
           </Card>
         )}
@@ -305,8 +332,10 @@ export default function BookingPage() {
                         onClick={() => !isDisabled && handleTimeSlotToggle(slot.start)}
                         disabled={isDisabled}
                       >
-                        {formatTimeSlot(slot.start)}
-                        {slot.is_booked && <span className="ml-1 text-xs">(已预定)</span>}
+                        <div className="truncate w-full">
+                          {formatTimeSlot(slot.start)}
+                          {slot.is_booked && <span className="ml-1 text-xs">(已预定)</span>}
+                        </div>
                       </Button>
                     );
                   })}

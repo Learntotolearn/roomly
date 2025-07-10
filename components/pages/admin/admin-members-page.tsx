@@ -88,6 +88,15 @@ export default function AdminMembersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {members?.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center">
+                    <div className="flex items-center justify-center">
+                      <p className="text-gray-500 py-4">暂无数据</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
               {members?.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell>{member.id}</TableCell>

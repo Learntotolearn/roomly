@@ -330,7 +330,7 @@ export default function AdminBookingsPage() {
                 <TableHead>会员</TableHead>
                 <TableHead>日期</TableHead>
                 <TableHead>时间</TableHead>
-              <TableHead>时长</TableHead>
+                <TableHead>时长</TableHead>
                 <TableHead>理由</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>创建时间</TableHead>
@@ -338,6 +338,15 @@ export default function AdminBookingsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {filteredAndSortedBookings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center">
+                    <div className="flex items-center justify-center">
+                      <p className="text-gray-500 py-4">暂无数据</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
               {filteredAndSortedBookings.map((booking) => (
                 <TableRow key={booking.id}>
                   <TableCell>{booking.id}</TableCell>

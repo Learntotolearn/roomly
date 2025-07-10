@@ -58,7 +58,7 @@ export default function HomePage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 flex-1 flex flex-col">
               <div className="flex items-center text-sm text-gray-600 dark:text-zinc-300">
                 <Users className="w-4 h-4 mr-2" />
                 可容纳 {room.capacity} 人
@@ -71,7 +71,7 @@ export default function HomePage() {
                 </div>
               )}
               
-              <div className="pt-4">
+              <div className="pt-4 flex-1 flex flex-col justify-end">
                 <Button 
                   className="w-full" 
                   disabled={!room.is_open}

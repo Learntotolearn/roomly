@@ -278,6 +278,15 @@ export default function AdminRoomsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {rooms?.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">
+                    <div className="flex items-center justify-center">
+                      <p className="text-gray-500 py-4">暂无数据</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
               {rooms?.map((room) => (
                 <TableRow key={room.id}>
                   <TableCell>{room.id}</TableCell>

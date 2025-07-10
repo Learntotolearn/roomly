@@ -61,7 +61,7 @@ Roomly 是一个现代化的会议室预定管理系统，专为企业和组织�
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-org/roomly.git
+git clone https://github.com/Learntotolearn/roomly.git
 cd roomly
 
 # 2. 启动服务
@@ -78,13 +78,8 @@ docker-compose up -d
 # 1. 安装前端依赖
 npm install
 
-# 2. 启动前端开发服务器
-npm run dev
-
-# 3. 启动后端服务器
-cd server
-go mod tidy
-go run main.go
+# 2. 启动开发服务（前端+后端）
+npm run dev:all
 
 # 4. 访问应用
 # 前端：http://localhost:3000

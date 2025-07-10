@@ -3,5 +3,5 @@ menu_items:
     label:
       en: Roomly
       zh: 会议室预订
-    url: /apps/roomly
+    url: apps/roomly
     url_type: iframe

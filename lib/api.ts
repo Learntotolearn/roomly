@@ -21,7 +21,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 // 会员相关API
 export const memberApi = {
-  // 获取所有会员
+  // 获取所有会员（无分页，返回全量数组）
   getAll: () => apiCall<Member[]>('/members'),
   
   // 获取单个会员
@@ -55,6 +55,13 @@ export const memberApi = {
     apiCall<Member>(`/members/${id}/admin`, {
       method: 'PUT',
       body: JSON.stringify({ is_admin: isAdmin }),
+    }),
+  
+  // 设置会议室管理员权限
+  setRoomAdminPermission: (id: number, isRoomAdmin: boolean) =>
+    apiCall<Member>(`/members/${id}/room-admin`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_room_admin: isRoomAdmin }),
     }),
   
   // 获取会员的预订记录

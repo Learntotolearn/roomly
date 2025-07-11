@@ -30,6 +30,7 @@ func SetupRoutes() *gin.Engine {
 			members.PUT("/:id", handlers.UpdateMember)
 			members.DELETE("/:id", handlers.DeleteMember)
 			members.PUT("/:id/admin", handlers.SetAdminPermission)
+			members.PUT("/:id/room-admin", handlers.SetRoomAdminPermission)
 			members.GET("/:id/bookings", handlers.GetMemberBookings)
 		}
 

@@ -10,7 +10,8 @@ import {
   FileText, 
   Home,
   Menu,
-  X
+  X,
+  Users
 } from 'lucide-react';
 import { closeApp } from '@dootask/tools';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -29,6 +30,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
     { href: '/booking', label: '预定会议室', icon: CalendarDays },
     { href: '/my-bookings', label: '我的预定', icon: FileText },
     ...(isAdmin ? [
+      { href: '/admin/members', label: '会员管理', icon: Users },
       { href: '/admin/rooms', label: '会议室管理', icon: Settings },
       { href: '/admin/bookings', label: '预定管理', icon: FileText },
     ] : []),

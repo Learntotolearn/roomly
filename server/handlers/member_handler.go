@@ -119,3 +119,31 @@ func SetAdminPermission(c *gin.Context) {
 
 	c.JSON(http.StatusOK, member)
 }
+
+// 设置会议室管理员权限
+func SetRoomAdminPermission(c *gin.Context) {
+	id := c.Param("id")
+
+	var request struct {
+		IsRoomAdmin bool `json:"is_room_admin"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var member models.Member
+	if err := database.DB.First(&member, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found"})
+		return
+	}
+
+	member.IsRoomAdmin = request.IsRoomAdmin
+	if err := database.DB.Save(&member).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update room admin permission"})
+		return
+	}
+
+	c.JSON(http.StatusOK, member)
+}

@@ -10,6 +10,7 @@ type Member struct {
 	Name      string    `gorm:"not null" json:"name"`
 	DootaskID uint      `gorm:"not null" json:"dootask_id"`
 	IsAdmin   bool      `gorm:"default:false" json:"is_admin"`
+	IsRoomAdmin bool    `gorm:"default:false" json:"is_room_admin"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

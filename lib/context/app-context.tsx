@@ -56,6 +56,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           dootask_id: userInfo.userid,
           name: userInfo.nickname,
           is_admin: userInfo.identity.includes('admin'),
+          is_room_admin: false,
         });
       }
 
@@ -95,7 +96,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [initTheme, initUser]);
 
   // 判断是否是管理员
-  const isAdmin = currentMember?.is_admin || false;
+  const isAdmin = currentMember?.is_admin || currentMember?.is_room_admin || false;
 
   return (
     <AppContext.Provider

@@ -4,6 +4,7 @@ export interface Member {
   name: string;
   dootask_id: number;
   is_admin: boolean;
+  is_room_admin: boolean;
   created_at: string;
   updated_at: string;
 }

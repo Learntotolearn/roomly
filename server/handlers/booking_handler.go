@@ -16,7 +16,7 @@ import (
 // 获取所有预定记录
 func GetBookings(c *gin.Context) {
 	var bookings []models.Booking
-	if err := database.DB.Preload("Room").Preload("Member").Find(&bookings).Error; err != nil {
+	if err := database.DB.Preload("Room").Preload("Member").Preload("BookingUsers").Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
 		return
 	}
@@ -27,7 +27,7 @@ func GetBookings(c *gin.Context) {
 func GetMemberBookings(c *gin.Context) {
 	memberID := c.Param("id")
 	var bookings []models.Booking
-	if err := database.DB.Where("member_id = ?", memberID).Preload("Room").Preload("Member").Find(&bookings).Error; err != nil {
+	if err := database.DB.Where("member_id = ?", memberID).Preload("Room").Preload("Member").Preload("BookingUsers").Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch member bookings"})
 		return
 	}
@@ -38,7 +38,7 @@ func GetMemberBookings(c *gin.Context) {
 func GetRoomBookings(c *gin.Context) {
 	roomID := c.Param("id")
 	var bookings []models.Booking
-	if err := database.DB.Where("room_id = ?", roomID).Preload("Room").Preload("Member").Find(&bookings).Error; err != nil {
+	if err := database.DB.Where("room_id = ?", roomID).Preload("Room").Preload("Member").Preload("BookingUsers").Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch room bookings"})
 		return
 	}
@@ -132,8 +132,20 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
+	for _, user := range request.BookingUsers {
+		bookingUser := models.BookingUser{
+			BookingID: booking.ID,
+			Userid:    user.Userid,
+			Nickname:  user.Nickname,
+		}
+		if err := database.DB.Create(&bookingUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking user"})
+			return
+		}
+	}
+
 	// 返回包含关联数据的预定记录
-	database.DB.Preload("Room").Preload("Member").First(&booking, booking.ID)
+	database.DB.Preload("Room").Preload("Member").Preload("BookingUsers").First(&booking, booking.ID)
 	c.JSON(http.StatusCreated, booking)
 }
 

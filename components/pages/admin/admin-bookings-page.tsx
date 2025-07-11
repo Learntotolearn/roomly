@@ -433,7 +433,7 @@ export default function AdminBookingsPage() {
           <DialogHeader>
             <DialogTitle>预定详情</DialogTitle>
             {detail && (
-              <div className="space-y-2 text-sm text-gray-700 mt-4">
+              <div className="space-y-2 text-sm text-gray-700 dark:text-zinc-300 mt-4">
                 <div>
                   <strong>会议室：</strong>{detail.room.name}
                 </div>
@@ -454,6 +454,9 @@ export default function AdminBookingsPage() {
                   <Badge variant={detail.status === 'active' ? "default" : "secondary"}>
                     {detail.status === 'active' ? '有效' : '已取消'}
                   </Badge>
+                </div>
+                <div>
+                  <strong>参会人员:</strong> {detail.booking_users?.length > 0 ? detail.booking_users.map((user) => user.nickname).join(', ') : '-'}
                 </div>
                 <div>
                   <strong>申请理由：</strong>{detail.reason}

@@ -5,19 +5,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roomApi, bookingApi } from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from "@/components/ui/calendar";
 
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, Clock, Users, MapPin, AlertCircle, Loader2, CalendarCheck2, ChevronDownIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, MapPin, AlertCircle, Loader2, CalendarCheck2, ChevronDownIcon, UserPlus, User } from 'lucide-react';
 import { addDays, format, isBefore, isToday, startOfDay } from 'date-fns';
 import { TimeSlot, BookingRequest } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { zhCN } from 'date-fns/locale';
+import { getUserInfo, requestAPI, selectUsers } from '@dootask/tools';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export default function BookingPage() {
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(initialRoomId);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
+  const [participantLoading, setParticipantLoading] = useState(false);
+  const [participantUsers, setParticipantUsers] = useState<{userid: number, nickname: string}[]>([]);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -127,7 +130,7 @@ export default function BookingPage() {
   };
 
   // 提交预定
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedRoomId || !selectedDate || selectedTimeSlots.length === 0 || !reason.trim()) {
@@ -140,12 +143,22 @@ export default function BookingPage() {
       return;
     }
 
+    const userInfo = await getUserInfo();
+    if (!participantUsers.find((user) => user.userid === userInfo.userid)) {
+      // 如果当前用户不在参会人员中，则添加到参会人员中
+      participantUsers.push({
+        userid: userInfo.userid,
+        nickname: userInfo.nickname,
+      });
+    }
+
     const bookingData: BookingRequest = {
       room_id: selectedRoomId,
       member_id: currentMember.id,
       date: selectedDate,
       time_slots: selectedTimeSlots,
       reason: reason.trim(),
+      booking_users: participantUsers,
     };
 
     createBookingMutation.mutate(bookingData);
@@ -343,14 +356,58 @@ export default function BookingPage() {
               )}
               
               {selectedTimeSlots.length > 0 && (
-                <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                  <p className="text-sm font-medium text-green-800">
+                <div className="mt-4 p-3 bg-green-50 rounded-lg dark:bg-green-900">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
                     已选择时间段: {formatTimeSlot(selectedTimeSlots[0])} 
                     {selectedTimeSlots.length > 1 && ` - ${formatTimeSlot(selectedTimeSlots[selectedTimeSlots.length - 1]).split(' - ')[1]}`}
                   </p>
-                  <p className="text-xs text-green-600 mt-1">
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                     总时长: {formatDuration(selectedTimeSlots.length * 0.5)}
                   </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 参会人员 */}
+        {selectedTimeSlots.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <User className="w-5 h-5 mr-2" />
+                参会人员
+              </CardTitle>
+              <CardDescription>
+                选择参会人员后，系统会自动发送通知给参会人员。
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" type="button" onClick={() => {
+                selectUsers({
+                  value: participantUsers.map((user) => user.userid),
+                  multipleMax: selectedRoom?.capacity || 0,
+                  title: '选择参会人员',
+                  placeholder: '请选择参会人员',
+                }).then((users) => {
+                  setParticipantLoading(true);
+                  requestAPI({
+                    url: 'users/basic',
+                    data: {userid: users},
+                  }).then(({data}) => {
+                    setParticipantUsers(data.map((user: {userid: number, nickname: string}) => ({userid: user.userid, nickname: user.nickname})));
+                  }).finally(() => {
+                    setParticipantLoading(false);
+                  });
+                });
+              }}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                添加参会人员
+              </Button>
+              {(participantLoading || participantUsers.length > 0) && (
+                <div className="flex items-center flex-wrap gap-2 mt-4">
+                  {participantUsers.map((user) => user.nickname).join(', ')}
+                  {participantLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 </div>
               )}
             </CardContent>

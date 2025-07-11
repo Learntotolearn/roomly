@@ -31,6 +31,12 @@ export interface Booking {
   updated_at: string;
   room: Room;
   member: Member;
+  booking_users: BookingUser[];
+}
+
+export interface BookingUser {
+  userid: number;
+  nickname: string;
 }
 
 export interface TimeSlot {
@@ -50,6 +56,7 @@ export interface BookingRequest {
   date: string;
   time_slots: string[];
   reason: string;
+  booking_users: BookingUser[];
 }
 
 // API响应类型

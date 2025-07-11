@@ -5,6 +5,7 @@ import QueryProvider from "@/lib/context/query-provider";
 import { AppProvider } from "@/lib/context/app-context";
 import { getSystemTheme } from "@/lib/utils";
 import { headers } from "next/headers";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default async function RootLayout({
         <QueryProvider>
           <AppProvider>
             {children}
+            <Toaster />
           </AppProvider>
         </QueryProvider>
       </body>

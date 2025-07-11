@@ -1,6 +1,6 @@
 services:
   roomly:
-    image: "1300775666/roomly:0.0.2"
+    image: "1300775666/roomly:0.0.3"
     volumes:
       - roomly_data:/web/db
     restart: unless-stopped

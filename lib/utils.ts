@@ -36,9 +36,9 @@ export function formatDuration(hours: number): string {
 }
 
 // 获取系统主题
-export function getSystemTheme() {
+export function getSystemTheme(theme?: string | null) { 
   if (typeof window === 'undefined') {
-    return 'light';
+    return (['light', 'dark'].includes(theme || '') ? theme : 'light') || 'light';
   }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }

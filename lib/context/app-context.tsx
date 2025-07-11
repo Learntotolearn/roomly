@@ -28,7 +28,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const theme = await getThemeName();
-    document.documentElement.setAttribute('class', theme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
     document.documentElement.setAttribute('data-theme', theme);
   }, []);
 

@@ -140,6 +140,9 @@ export default function MyBookingsPage() {
                         </div>
                       </div>
                       <div className="text-sm text-gray-600 dark:text-zinc-300">
+                        <strong>参会人员:</strong> {booking.booking_users?.length > 0 ? booking.booking_users.map((user) => user.nickname).join(', ') : '-'}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-zinc-300">
                         <strong>申请理由:</strong> {booking.reason}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-zinc-300">
@@ -197,6 +200,9 @@ export default function MyBookingsPage() {
                           <Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
                           <span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
                         </div>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-zinc-300">
+                        <strong>参会人员:</strong> {booking.booking_users?.length > 0 ? booking.booking_users.map((user) => user.nickname).join(', ') : '-'}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-zinc-300">
                         <strong>申请理由:</strong> {booking.reason}

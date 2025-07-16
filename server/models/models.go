@@ -40,17 +40,29 @@ type Booking struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	// 关联关系
-	Room   Room   `gorm:"foreignKey:RoomID" json:"room"`
-	Member Member `gorm:"foreignKey:MemberID" json:"member"`
+	Room         Room          `gorm:"foreignKey:RoomID" json:"room"`
+	Member       Member        `gorm:"foreignKey:MemberID" json:"member"`
+	BookingUsers []BookingUser `gorm:"foreignKey:BookingID" json:"booking_users"`
+}
+
+// 预定人员模型
+type BookingUser struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	BookingID uint      `gorm:"not null" json:"booking_id"`
+	Userid    uint      `gorm:"not null" json:"userid"`
+	Nickname  string    `gorm:"not null" json:"nickname"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // 预定请求结构
 type BookingRequest struct {
-	RoomID    uint     `json:"room_id" binding:"required"`
-	MemberID  uint     `json:"member_id" binding:"required"`
-	Date      string   `json:"date" binding:"required"`
-	TimeSlots []string `json:"time_slots" binding:"required"`
-	Reason    string   `json:"reason" binding:"required"`
+	RoomID       uint          `json:"room_id" binding:"required"`
+	MemberID     uint          `json:"member_id" binding:"required"`
+	Date         string        `json:"date" binding:"required"`
+	TimeSlots    []string      `json:"time_slots" binding:"required"`
+	Reason       string        `json:"reason" binding:"required"`
+	BookingUsers []BookingUser `json:"booking_users" binding:"required"`
 }
 
 // 时间段结构

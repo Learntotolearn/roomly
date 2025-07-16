@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"roomly/database"
@@ -22,7 +23,7 @@ func ExportBookings(c *gin.Context) {
 	status := c.Query("status")
 
 	// 构建查询
-	query := database.DB.Model(&models.Booking{}).Preload("Room").Preload("Member")
+	query := database.DB.Model(&models.Booking{}).Preload("Room").Preload("Member").Preload("BookingUsers")
 
 	if startDate != "" {
 		query = query.Where("date >= ?", startDate)
@@ -57,7 +58,7 @@ func ExportBookings(c *gin.Context) {
 
 	// 创建表头
 	headerRow := sheet.AddRow()
-	headers := []string{"预订ID", "会议室名称", "会员姓名", "预订日期", "开始时间", "结束时间", "申请理由", "状态", "创建时间"}
+	headers := []string{"预订ID", "会议室名称", "会员姓名", "预订日期", "开始时间", "结束时间", "参会人员", "申请理由", "状态", "创建时间"}
 	for _, header := range headers {
 		cell := headerRow.AddCell()
 		cell.Value = header
@@ -85,6 +86,13 @@ func ExportBookings(c *gin.Context) {
 
 		// 结束时间
 		row.AddCell().SetString(booking.EndTime)
+
+		// 参会人员
+		var userNames []string
+		for _, user := range booking.BookingUsers {
+			userNames = append(userNames, user.Nickname)
+		}
+		row.AddCell().SetString(strings.Join(userNames, ", "))
 
 		// 申请理由
 		row.AddCell().SetString(booking.Reason)

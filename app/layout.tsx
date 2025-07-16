@@ -4,6 +4,8 @@ import "./globals.css";
 import QueryProvider from "@/lib/context/query-provider";
 import { AppProvider } from "@/lib/context/app-context";
 import { getSystemTheme } from "@/lib/utils";
+import { headers } from "next/headers";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,19 +22,22 @@ export const metadata: Metadata = {
   description: "会议室预定管理系统",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const theme = headersList.get('x-theme');
   return (
-    <html lang="zh-CN" className={getSystemTheme()}>
+    <html lang="zh-CN" className={getSystemTheme(theme)}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
           <AppProvider>
             {children}
+            <Toaster />
           </AppProvider>
         </QueryProvider>
       </body>

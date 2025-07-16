@@ -23,7 +23,7 @@ func InitDB() {
 	}
 
 	// 自动迁移数据库结构
-	err = DB.AutoMigrate(&models.Member{}, &models.Room{}, &models.Booking{})
+	err = DB.AutoMigrate(&models.Member{}, &models.Room{}, &models.Booking{}, &models.BookingUser{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

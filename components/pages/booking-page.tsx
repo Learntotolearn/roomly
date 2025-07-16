@@ -19,6 +19,7 @@ import { formatDuration } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { zhCN } from 'date-fns/locale';
 import { getUserInfo, requestAPI, selectUsers } from '@dootask/tools';
+import { userApi } from '@/lib/api';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [participantLoading, setParticipantLoading] = useState(false);
+  const [participantUserIds, setParticipantUserIds] = useState<number[]>([]);
   const [participantUsers, setParticipantUsers] = useState<{userid: number, nickname: string}[]>([]);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
@@ -75,7 +77,13 @@ export default function BookingPage() {
   // 创建预定的mutation
   const createBookingMutation = useMutation({
     mutationFn: (bookingData: BookingRequest) => bookingApi.create(bookingData),
-    onSuccess: () => {
+    // 预约成功后，后端会自动异步发送会议通知，前端无需再单独请求消息推送接口。
+    onSuccess: async () => {
+      if (participantUserIds.length > 0) {
+        const userInfo = await getUserInfo();
+        const token = userInfo?.token;
+        await userApi.getBasic(participantUserIds, token);
+      }
       // 失效相关的查询缓存
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
@@ -385,11 +393,12 @@ export default function BookingPage() {
             <CardContent>
               <Button variant="outline" type="button" onClick={() => {
                 selectUsers({
-                  value: participantUsers.map((user) => user.userid),
+                  value: participantUserIds,
                   multipleMax: selectedRoom?.capacity || 0,
                   title: '选择参会人员',
                   placeholder: '请选择参会人员',
                 }).then((users) => {
+                  setParticipantUserIds(users); // 只存ID
                   setParticipantLoading(true);
                   requestAPI({
                     url: 'users/basic',

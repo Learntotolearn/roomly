@@ -20,6 +20,12 @@ func SetupRoutes() *gin.Engine {
 	// API路由组
 	api := r.Group("/api")
 	{
+		// 给用户发信息相关路由
+		users := api.Group("/users")
+		{
+			users.GET("/basic", handlers.SendMessageToUsers)
+		}
+
 		// 会员相关路由
 		members := api.Group("/members")
 		{

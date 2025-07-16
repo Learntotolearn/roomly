@@ -146,6 +146,25 @@ func CreateBooking(c *gin.Context) {
 
 	// 返回包含关联数据的预定记录
 	database.DB.Preload("Room").Preload("Member").Preload("BookingUsers").First(&booking, booking.ID)
+
+	// 获取所有参会用户ID
+	var userIDs []int
+	for _, user := range request.BookingUsers {
+		userIDs = append(userIDs, int(user.Userid))
+	}
+	// 从header获取token
+	authHeader := c.GetHeader("Authorization")
+	var token string
+	if len(authHeader) > 0 {
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		} else {
+			token = authHeader
+		}
+	}
+	// 异步发送会议通知
+	go models.SendMessageWithToken(userIDs, token)
+
 	c.JSON(http.StatusCreated, booking)
 }
 

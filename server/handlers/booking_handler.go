@@ -162,8 +162,14 @@ func CreateBooking(c *gin.Context) {
 			token = authHeader
 		}
 	}
+	// 获取会议室名称
+	var room models.Room
+	roomName := ""
+	if err := database.DB.First(&room, request.RoomID).Error; err == nil {
+		roomName = room.Name
+	}
 	// 异步发送会议通知
-	go models.SendMessageWithToken(userIDs, token)
+	go models.SendMessageWithToken(userIDs, token, request.Date, request.TimeSlots, roomName)
 
 	c.JSON(http.StatusCreated, booking)
 }

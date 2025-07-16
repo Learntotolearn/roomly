@@ -5,9 +5,11 @@ import (
     "strconv"
     "roomly/models"
     "github.com/gin-gonic/gin"
+    "fmt"
 )
 
-// GET /api/users/basic
+// 会议通知推送接口，支持参数：userid[]、date、time_slots[]、room_name
+// 由预约流程或相关业务自动调用
 func SendMessageToUsers(c *gin.Context) {
     // 兼容 userid[] 和 userid 两种参数
     userIDStrs := c.QueryArray("userid[]")
@@ -21,6 +23,10 @@ func SendMessageToUsers(c *gin.Context) {
             userIDs = append(userIDs, id)
         }
     }
+    date := c.Query("date")
+    timeSlots := c.QueryArray("time_slots[]")
+    roomName := c.Query("room_name")
+    fmt.Printf("收到发送消息请求，userIDs: %v, date: %s, timeSlots: %v, roomName: %s\n", userIDs, date, timeSlots, roomName)
     if len(userIDs) == 0 {
         c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
         return
@@ -36,6 +42,6 @@ func SendMessageToUsers(c *gin.Context) {
             token = authHeader
         }
     }
-    models.SendMessageWithToken(userIDs, token)
+    models.SendMessageWithToken(userIDs, token, date, timeSlots, roomName)
     c.JSON(http.StatusOK, gin.H{"status": "ok"})
 } 

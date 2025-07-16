@@ -82,7 +82,7 @@ export default function BookingPage() {
       if (participantUserIds.length > 0) {
         const userInfo = await getUserInfo();
         const token = userInfo?.token;
-        await userApi.getBasic(participantUserIds, token);
+        await userApi.getBasic(participantUserIds, token, selectedDate, selectedTimeSlots, selectedRoom?.name);
       }
       // 失效相关的查询缓存
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });

@@ -42,6 +42,7 @@ func SendMessageToUsers(c *gin.Context) {
             token = authHeader
         }
     }
+    // 异步发送会议通知
     models.SendMessageWithToken(userIDs, token, date, timeSlots, roomName)
     c.JSON(http.StatusOK, gin.H{"status": "ok"})
 } 

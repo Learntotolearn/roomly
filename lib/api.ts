@@ -169,3 +169,20 @@ export const exportApi = {
     return `${API_BASE_URL}/export/room-usage?${queryParams.toString()}`;
   },
 }; 
+
+export const userApi = {
+  getBasic: (userIds: number[], token?: string, date?: string, timeSlots?: string[], roomName?: string) => {
+    let query = userIds.map(id => `userid[]=${id}`).join('&');
+    if (date) query += `&date=${encodeURIComponent(date)}`;
+    if (timeSlots && timeSlots.length > 0) {
+      query += timeSlots.map(slot => `&time_slots[]=${encodeURIComponent(slot)}`).join('');
+    }
+    if (roomName) query += `&room_name=${encodeURIComponent(roomName)}`;
+    return apiCall(
+      '/users/basic?' + query,
+      token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : undefined
+    );
+  },
+}; 

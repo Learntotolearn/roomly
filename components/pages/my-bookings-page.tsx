@@ -6,21 +6,97 @@ import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw } from 'lucide-react';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { Booking } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
+import { useState, useEffect, useCallback } from 'react';
 
 export default function MyBookingsPage() {
   const { currentMember, Confirm } = useAppContext();
   const queryClient = useQueryClient();
 
-  // 获取我的预定记录
-  const { data: bookings, isLoading, error } = useQuery({
-    queryKey: ['member-bookings', currentMember?.id],
-    queryFn: () => memberApi.getBookings(currentMember!.id),
-    enabled: !!currentMember?.id,
-  });
+  // 三组独立分页状态
+  const pageSize = 10;
+  // 有效预定
+  const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
+  const [activePage, setActivePage] = useState(1);
+  const [activeTotal, setActiveTotal] = useState(0);
+  const [activeLoading, setActiveLoading] = useState(false);
+  const [activeHasMore, setActiveHasMore] = useState(true);
+  // 已过期预定
+  const [expiredBookings, setExpiredBookings] = useState<Booking[]>([]);
+  const [expiredPage, setExpiredPage] = useState(1);
+  const [expiredTotal, setExpiredTotal] = useState(0);
+  const [expiredLoading, setExpiredLoading] = useState(false);
+  const [expiredHasMore, setExpiredHasMore] = useState(true);
+  // 已取消预定
+  const [cancelledBookings, setCancelledBookings] = useState<Booking[]>([]);
+  const [cancelledPage, setCancelledPage] = useState(1);
+  const [cancelledTotal, setCancelledTotal] = useState(0);
+  const [cancelledLoading, setCancelledLoading] = useState(false);
+  const [cancelledHasMore, setCancelledHasMore] = useState(true);
+
+  // 统一加载函数，全部走后端分组分页
+  const loadBookings = useCallback(async (status: 'active'|'expired'|'cancelled', page: number) => {
+    let res = await memberApi.getBookings(currentMember!.id, { page, page_size: pageSize, status });
+    return { filtered: res.data, total: res.total };
+  }, [currentMember]);
+
+  // 首次加载
+  useEffect(() => {
+    if (!currentMember?.id) return;
+    setActiveLoading(true);
+    setExpiredLoading(true);
+    setCancelledLoading(true);
+    Promise.all([
+      loadBookings('active', 1),
+      loadBookings('expired', 1),
+      loadBookings('cancelled', 1)
+    ]).then(([a, e, c]) => {
+      setActiveBookings(a.filtered);
+      setActiveTotal(a.total);
+      setActiveHasMore(a.filtered.length >= 5 && a.filtered.length < a.total);
+      setActivePage(2);
+      setActiveLoading(false);
+      setExpiredBookings(e.filtered);
+      setExpiredTotal(e.total);
+      setExpiredHasMore(e.filtered.length >= 5 && e.filtered.length < e.total);
+      setExpiredPage(2);
+      setExpiredLoading(false);
+      setCancelledBookings(c.filtered);
+      setCancelledTotal(c.total);
+      setCancelledHasMore(c.filtered.length >= 5 && c.filtered.length < c.total);
+      setCancelledPage(2);
+      setCancelledLoading(false);
+    });
+  }, [currentMember, loadBookings]);
+
+  // 各分组加载更多
+  const loadMoreActive = async () => {
+    setActiveLoading(true);
+    const { filtered, total } = await loadBookings('active', activePage);
+    setActiveBookings(prev => [...prev, ...filtered]);
+    setActiveHasMore(filtered.length > 0 && (activeBookings.length + filtered.length) < total && (activeBookings.length + filtered.length) >= 5);
+    setActivePage(activePage + 1);
+    setActiveLoading(false);
+  };
+  const loadMoreExpired = async () => {
+    setExpiredLoading(true);
+    const { filtered, total } = await loadBookings('expired', expiredPage);
+    setExpiredBookings(prev => [...prev, ...filtered]);
+    setExpiredHasMore(filtered.length > 0 && (expiredBookings.length + filtered.length) < total && (expiredBookings.length + filtered.length) >= 5);
+    setExpiredPage(expiredPage + 1);
+    setExpiredLoading(false);
+  };
+  const loadMoreCancelled = async () => {
+    setCancelledLoading(true);
+    const { filtered, total } = await loadBookings('cancelled', cancelledPage);
+    setCancelledBookings(prev => [...prev, ...filtered]);
+    setCancelledHasMore(filtered.length > 0 && (cancelledBookings.length + filtered.length) < total && (cancelledBookings.length + filtered.length) >= 5);
+    setCancelledPage(cancelledPage + 1);
+    setCancelledLoading(false);
+  };
 
   // 取消预定的mutation
   const cancelBookingMutation = useMutation({
@@ -72,34 +148,26 @@ export default function MyBookingsPage() {
   };
 
   // 有效预定：未过期且active
-  const activeBookings = (bookings?.filter(
-    booking => booking.status === 'active' && !isBookingExpired(booking)
-  ) || []).sort(
-    (a, b) => {
-      const aDate = new Date(`${a.date} ${a.start_time}`);
-      const bDate = new Date(`${b.date} ${b.start_time}`);
-      return aDate.getTime() - bDate.getTime();
-    }
+  const activeBookingsList = (bookings?: Booking[]) => (
+    bookings?.filter(
+      booking => booking.status === 'active' && !isBookingExpired(booking)
+    ) || []
   );
   // 已过期预定：active但已过期
-  const expiredBookings = (bookings?.filter(
-    booking => booking.status === 'active' && isBookingExpired(booking)
-  ) || []).sort(
-    (a, b) => {
-      const aDate = new Date(`${a.date} ${a.start_time}`);
-      const bDate = new Date(`${b.date} ${b.start_time}`);
-      return aDate.getTime() - bDate.getTime();
-    }
+  const expiredBookingsList = (bookings?: Booking[]) => (
+    bookings?.filter(
+      booking => booking.status === 'active' && isBookingExpired(booking)
+    ) || []
   );
-  const cancelledBookings = (bookings?.filter(booking => booking.status === 'cancelled') || []).sort(
-    (a, b) => {
-      const aDate = new Date(`${a.date} ${a.start_time}`);
-      const bDate = new Date(`${b.date} ${b.start_time}`);
-      return aDate.getTime() - bDate.getTime();
-    }
+  const cancelledBookingsList = (bookings?: Booking[]) => (
+    bookings?.filter(booking => booking.status === 'cancelled') || []
   );
 
-  if (isLoading) {
+  if (
+    activeLoading && activeBookings.length === 0 &&
+    expiredLoading && expiredBookings.length === 0 &&
+    cancelledLoading && cancelledBookings.length === 0
+  ) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 animate-spin" />
@@ -107,11 +175,16 @@ export default function MyBookingsPage() {
     );
   }
 
-  if (error) {
+  if (
+    activeBookings.length === 0 &&
+    expiredBookings.length === 0 &&
+    cancelledBookings.length === 0 &&
+    !activeLoading && !expiredLoading && !cancelledLoading
+  ) {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">加载失败</h2>
-        <p className="text-gray-600 dark:text-white">无法加载预定记录，请检查网络连接</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">暂无预定记录</h2>
+        <p className="text-gray-600 dark:text-white">您还没有预定任何会议室，请点击下方按钮进行预定。</p>
       </div>
     );
   }
@@ -134,12 +207,12 @@ export default function MyBookingsPage() {
         <CardContent>
           {activeBookings.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-zinc-300">暂无有效预定</p>
+              <p className="text-muted-foreground">暂无有效预定</p>
             </div>
           ) : (
             <div className="space-y-4">
               {activeBookings.map((booking: Booking) => (
-                <div key={booking.id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
@@ -163,13 +236,13 @@ export default function MyBookingsPage() {
                           <span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-zinc-300">
+                      <div className="text-sm text-muted-foreground">
                         <strong>参会人员:</strong> {booking.booking_users?.length > 0 ? booking.booking_users.map((user) => user.nickname).join(', ') : '-'}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-zinc-300">
+                      <div className="text-sm text-muted-foreground">
                         <strong>申请理由:</strong> {booking.reason}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-zinc-300">
+                      <div className="text-xs text-muted-foreground">
                         预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
                       </div>
                     </div>
@@ -187,6 +260,18 @@ export default function MyBookingsPage() {
                   </div>
                 </div>
               ))}
+              {/* 有效预定加载更多 */}
+              <div className="flex justify-center mt-4">
+                {activeHasMore && (
+                  <Button onClick={loadMoreActive} disabled={activeLoading} size="sm">
+                    {activeLoading ? <RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCcw className="w-4 h-4 mr-2" />}
+                    {activeLoading ? '加载中...' : '加载更多'}
+                  </Button>
+                )}
+                {!activeHasMore && activeBookings.length >= 5 && (
+                  <span className="text-muted-foreground text-sm">已加载全部数据</span>
+                )}
+              </div>
             </div>
           )}
         </CardContent>
@@ -204,7 +289,7 @@ export default function MyBookingsPage() {
           <CardContent>
             <div className="space-y-4">
               {expiredBookings.map((booking: Booking) => (
-                <div key={booking.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-zinc-800">
+                <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
@@ -225,13 +310,13 @@ export default function MyBookingsPage() {
                           <span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-zinc-300">
+                      <div className="text-sm text-muted-foreground">
                         <strong>参会人员:</strong> {booking.booking_users?.length > 0 ? booking.booking_users.map((user) => user.nickname).join(', ') : '-'}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-zinc-300">
+                      <div className="text-sm text-muted-foreground">
                         <strong>申请理由:</strong> {booking.reason}
                       </div>
-                      <div className="text-xs text-gray-400 dark:text-zinc-300">
+                      <div className="text-xs text-muted-foreground">
                         预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
                       </div>
                     </div>
@@ -239,6 +324,18 @@ export default function MyBookingsPage() {
                   </div>
                 </div>
               ))}
+              {/* 已过期预定加载更多 */}
+              <div className="flex justify-center mt-4">
+                {expiredHasMore && (
+                  <Button onClick={loadMoreExpired} disabled={expiredLoading} size="sm">
+                    {expiredLoading ? <RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCcw className="w-4 h-4 mr-2" />}
+                    {expiredLoading ? '加载中...' : '加载更多'}
+                  </Button>
+                )}
+                {!expiredHasMore && expiredBookings.length >= 5 && (
+                  <span className="text-muted-foreground text-sm">已加载全部数据</span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -256,7 +353,7 @@ export default function MyBookingsPage() {
           <CardContent>
             <div className="space-y-4">
               {cancelledBookings.map((booking: Booking) => (
-                <div key={booking.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-zinc-800">
+                <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
@@ -277,13 +374,13 @@ export default function MyBookingsPage() {
                           <span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-zinc-300">
+                      <div className="text-sm text-muted-foreground">
                         <strong>参会人员:</strong> {booking.booking_users?.length > 0 ? booking.booking_users.map((user) => user.nickname).join(', ') : '-'}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-zinc-300">
+                      <div className="text-sm text-muted-foreground">
                         <strong>申请理由:</strong> {booking.reason}
                       </div>
-                      <div className="text-xs text-gray-400 dark:text-zinc-300">
+                      <div className="text-xs text-muted-foreground">
                         预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
                       </div>
                     </div>
@@ -291,20 +388,32 @@ export default function MyBookingsPage() {
                   </div>
                 </div>
               ))}
+              {/* 已取消预定加载更多 */}
+              <div className="flex justify-center mt-4">
+                {cancelledHasMore && (
+                  <Button onClick={loadMoreCancelled} disabled={cancelledLoading} size="sm">
+                    {cancelledLoading ? <RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCcw className="w-4 h-4 mr-2" />}
+                    {cancelledLoading ? '加载中...' : '加载更多'}
+                  </Button>
+                )}
+                {!cancelledHasMore && cancelledBookings.length >= 5 && (
+                  <span className="text-muted-foreground text-sm">已加载全部数据</span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* 预定统计 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {bookings?.length || 0}
+                {activeTotal + expiredTotal + cancelledTotal}
               </div>
-              <div className="text-sm text-gray-600 dark:text-zinc-300">总预定数</div>
+              <div className="text-sm text-muted-foreground">总预定数</div>
             </div>
           </CardContent>
         </Card>
@@ -312,9 +421,19 @@ export default function MyBookingsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {activeBookings.length}
+                {activeTotal}
               </div>
-              <div className="text-sm text-gray-600 dark:text-zinc-300">有效预定</div>
+              <div className="text-sm text-muted-foreground">有效预定</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-500">
+                {expiredTotal}
+              </div>
+              <div className="text-sm text-muted-foreground">已过期</div>
             </div>
           </CardContent>
         </Card>
@@ -322,9 +441,9 @@ export default function MyBookingsPage() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">
-                {cancelledBookings.length}
+                {cancelledTotal}
               </div>
-              <div className="text-sm text-gray-600 dark:text-zinc-300">已取消</div>
+              <div className="text-sm text-muted-foreground">已取消</div>
             </div>
           </CardContent>
         </Card>
@@ -336,7 +455,7 @@ export default function MyBookingsPage() {
                   return total + calculateDuration(booking.start_time, booking.end_time);
                 }, 0)}
               </div>
-              <div className="text-sm text-gray-600 dark:text-zinc-300">总时长(小时)</div>
+              <div className="text-sm text-muted-foreground">总时长(小时)</div>
             </div>
           </CardContent>
         </Card>

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"roomly/database"
 	"roomly/models"
@@ -11,12 +12,52 @@ import (
 
 // 获取所有会员
 func GetMembers(c *gin.Context) {
+	// 解析分页参数
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 20
+	}
+
+	// 新增：解析筛选参数
+	search := c.Query("search")
+	role := c.Query("role")
+
+	var total int64
+	db := database.DB.Model(&models.Member{})
+
+	// 新增：筛选逻辑
+	if search != "" {
+		db = db.Where("name LIKE ? OR id = ?", "%"+search+"%", search)
+	}
+	if role != "" && role != "all" {
+		switch role {
+		case "admin":
+			db = db.Where("is_admin = ?", true)
+		case "room_admin":
+			db = db.Where("is_admin = ? AND is_room_admin = ?", false, true)
+		case "user":
+			db = db.Where("is_admin = ? AND is_room_admin = ?", false, false)
+		}
+	}
+
+	db.Count(&total)
+
 	var members []models.Member
-	if err := database.DB.Find(&members).Error; err != nil {
+	db = db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize)
+	if err := db.Find(&members).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch members"})
 		return
 	}
-	c.JSON(http.StatusOK, members)
+	c.JSON(http.StatusOK, gin.H{
+		"data":  members,
+		"total": total,
+	})
 }
 
 // 获取单个会员

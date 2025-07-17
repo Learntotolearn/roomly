@@ -5,15 +5,16 @@ import { roomApi } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { Users, MapPin, Calendar, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
   const router = useRouter();
-  const { data: rooms, isLoading, error } = useQuery({
+  const { data: roomsRes, isLoading, error } = useQuery({
     queryKey: ['rooms'],
-    queryFn: roomApi.getAll,
+    queryFn: () => roomApi.getAll(),
   });
+  const rooms = roomsRes?.data || [];
 
   if (isLoading) {
     return (
@@ -48,7 +49,7 @@ export default function HomePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {rooms?.map((room) => (
+        {rooms.map((room) => (
           <Card key={room.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -88,7 +89,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      {rooms?.length === 0 && (
+      {rooms.length === 0 && (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             暂无会议室

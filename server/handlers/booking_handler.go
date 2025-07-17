@@ -15,23 +15,80 @@ import (
 
 // 获取所有预定记录
 func GetBookings(c *gin.Context) {
+	// 解析分页参数
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 20
+	}
+
+	var total int64
+	db := database.DB.Model(&models.Booking{})
+	db.Count(&total)
+
 	var bookings []models.Booking
-	if err := database.DB.Preload("Room").Preload("Member").Preload("BookingUsers").Find(&bookings).Error; err != nil {
+	db = db.Preload("Room").Preload("Member").Preload("BookingUsers").Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize)
+	if err := db.Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
 		return
 	}
-	c.JSON(http.StatusOK, bookings)
+	c.JSON(http.StatusOK, gin.H{
+		"data":  bookings,
+		"total": total,
+	})
 }
 
 // 获取指定会员的预定记录
 func GetMemberBookings(c *gin.Context) {
 	memberID := c.Param("id")
+
+	// 解析分页参数
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 20
+	}
+
+	// 新增：解析分组参数
+	status := c.DefaultQuery("status", "")
+
+	var total int64
+	db := database.DB.Model(&models.Booking{}).Where("member_id = ?", memberID)
+
+	// 新增：分组过滤
+	if status == "active" {
+		db = db.Where("status = ?", "active")
+		// 只查未过期的
+		db = db.Where("(date > ? OR (date = ? AND end_time > ?))", time.Now().Format("2006-01-02"), time.Now().Format("2006-01-02"), time.Now().Format("15:04"))
+	} else if status == "expired" {
+		db = db.Where("status = ?", "active")
+		// 只查已过期的
+		db = db.Where("(date < ? OR (date = ? AND end_time <= ?))", time.Now().Format("2006-01-02"), time.Now().Format("2006-01-02"), time.Now().Format("15:04"))
+	} else if status == "cancelled" {
+		db = db.Where("status = ?", "cancelled")
+	}
+	db.Count(&total)
+
 	var bookings []models.Booking
-	if err := database.DB.Where("member_id = ?", memberID).Preload("Room").Preload("Member").Preload("BookingUsers").Find(&bookings).Error; err != nil {
+	db = db.Preload("Room").Preload("Member").Preload("BookingUsers").Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize)
+	if err := db.Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch member bookings"})
 		return
 	}
-	c.JSON(http.StatusOK, bookings)
+	c.JSON(http.StatusOK, gin.H{
+		"data":  bookings,
+		"total": total,
+	})
 }
 
 // 获取指定会议室的预定记录

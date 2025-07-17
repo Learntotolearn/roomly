@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"roomly/database"
 	"roomly/models"
@@ -11,12 +12,32 @@ import (
 
 // 获取所有会议室
 func GetRooms(c *gin.Context) {
+	// 解析分页参数
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 20
+	}
+
+	var total int64
+	db := database.DB.Model(&models.Room{})
+	db.Count(&total)
+
 	var rooms []models.Room
-	if err := database.DB.Find(&rooms).Error; err != nil {
+	db = db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize)
+	if err := db.Find(&rooms).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch rooms"})
 		return
 	}
-	c.JSON(http.StatusOK, rooms)
+	c.JSON(http.StatusOK, gin.H{
+		"data":  rooms,
+		"total": total,
+	})
 }
 
 // 获取开放的会议室

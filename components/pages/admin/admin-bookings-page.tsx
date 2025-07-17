@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { bookingApi, exportApi } from '@/lib/api';
-import { Booking } from '@/lib/types';
+import type { Booking } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,12 +52,17 @@ export default function AdminBookingsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detail, setDetail] = useState<Booking | null>(null);
+  // 分页相关
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // 获取所有预定记录
-  const { data: bookings, isLoading, error } = useQuery({
-    queryKey: ['bookings'],
-    queryFn: bookingApi.getAll,
+  const { data: bookingsRes, isLoading, error } = useQuery<{ data: Booking[]; total: number }>({
+    queryKey: ['bookings', page, pageSize],
+    queryFn: () => bookingApi.getAll({ page, page_size: pageSize }),
   });
+  const bookings: Booking[] = bookingsRes?.data || [];
+  const total: number = bookingsRes?.total || 0;
 
   // 取消预定
   const cancelBookingMutation = useMutation({
@@ -72,7 +77,7 @@ export default function AdminBookingsPage() {
   const handleCancelBooking = (booking: Booking) => {
     Confirm({
       title: '取消预定',
-      message: `确定要取消 ${booking.member.name} 在 ${booking.room.name} 的预定吗？`,
+      message: `确定要取消 ${booking.member?.name || ''} 在 ${booking.room?.name || ''} 的预定吗？`,
       onConfirm: () => {
         cancelBookingMutation.mutate(booking.id);
       },
@@ -95,43 +100,64 @@ export default function AdminBookingsPage() {
     });
   };
 
+  // 判断预定是否过期
+  const isBookingExpired = (booking: Booking) => {
+    if (!booking || !booking.date || !booking.end_time) return false;
+    const endDateTime = new Date(`${booking.date}T${booking.end_time}:00`);
+    if (isNaN(endDateTime.getTime())) return false;
+    if (booking.end_time === '00:00') {
+      endDateTime.setDate(endDateTime.getDate() + 1);
+      endDateTime.setHours(0, 0, 0, 0);
+    }
+    return booking.status === 'active' && isBefore(endDateTime, new Date());
+  };
+
   // 过滤和排序逻辑
   const filteredAndSortedBookings = useMemo(() => {
     if (!bookings) return [];
 
-    const filtered = bookings.filter(booking => {
+    const filtered = bookings.filter(Boolean).filter((booking: Booking) => {
       // 搜索过滤
       const matchesSearch = searchTerm === '' || 
-        booking.room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.reason.toLowerCase().includes(searchTerm.toLowerCase());
+        (booking.room?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (booking.member?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (booking.reason?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
       // 状态过滤
-      const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+      let matchesStatus = false;
+      if (statusFilter === 'all') {
+        matchesStatus = true;
+      } else if (statusFilter === 'active') {
+        matchesStatus = booking.status === 'active' && !isBookingExpired(booking);
+      } else if (statusFilter === 'expired') {
+        matchesStatus = booking.status === 'active' && isBookingExpired(booking);
+      } else if (statusFilter === 'cancelled') {
+        matchesStatus = booking.status === 'cancelled';
+      }
 
       return matchesSearch && matchesStatus;
     });
 
     // 排序
-    filtered.sort((a, b) => {
+    filtered.sort((a: Booking, b: Booking) => {
       let aValue, bValue;
 
       switch (sortBy) {
         case 'date':
-          aValue = new Date(`${a.date} ${a.start_time}`);
-          bValue = new Date(`${b.date} ${b.start_time}`);
+          aValue = new Date(`${a.date || ''} ${a.start_time || ''}`);
+          bValue = new Date(`${b.date || ''} ${b.start_time || ''}`);
           break;
         case 'room':
-          aValue = a.room.name;
-          bValue = b.room.name;
+          aValue = a.room?.name || '';
+          bValue = b.room?.name || '';
           break;
         case 'member':
-          aValue = a.member.name;
-          bValue = b.member.name;
+          aValue = a.member?.name || '';
+          bValue = b.member?.name || '';
           break;
         case 'created':
-          aValue = new Date(a.created_at);
-          bValue = new Date(b.created_at);
+          aValue = new Date(a.created_at || '');
+          bValue = new Date(b.created_at || '');
           break;
         default:
           aValue = a.id;
@@ -151,17 +177,16 @@ export default function AdminBookingsPage() {
 
   // 统计信息
   const stats = useMemo(() => {
-    if (!bookings) return { total: 0, active: 0, cancelled: 0, today: 0 };
-
+    if (!bookings) return { total: 0, active: 0, expired: 0, cancelled: 0, today: 0 };
     const today = format(new Date(), 'yyyy-MM-dd');
-    
     return {
-      total: bookings.length,
-      active: bookings.filter(b => b.status === 'active').length,
-      cancelled: bookings.filter(b => b.status === 'cancelled').length,
-      today: bookings.filter(b => b.date === today && b.status === 'active').length,
+      total: total,
+      active: bookings.filter((b: Booking) => b.status === 'active' && !isBookingExpired(b)).length,
+      expired: bookings.filter((b: Booking) => b.status === 'active' && isBookingExpired(b)).length,
+      cancelled: bookings.filter((b: Booking) => b.status === 'cancelled').length,
+      today: bookings.filter((b: Booking) => b.date === today && b.status === 'active').length,
     };
-  }, [bookings]);
+  }, [bookings, total]);
 
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -178,16 +203,6 @@ export default function AdminBookingsPage() {
       endTime = '24:00';
     }
     return `${startTime} - ${endTime}`;
-  };
-
-  // 判断预定是否过期
-  const isBookingExpired = (booking: Booking) => {
-    const endDateTime = new Date(`${booking.date}T${booking.end_time}:00`);
-    if (booking.end_time === '00:00') {
-      endDateTime.setDate(endDateTime.getDate() + 1);
-      endDateTime.setHours(0, 0, 0, 0);
-    }
-    return booking.status === 'active' && isBefore(endDateTime, new Date());
   };
 
   if (isLoading) {
@@ -222,7 +237,7 @@ export default function AdminBookingsPage() {
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
@@ -236,6 +251,14 @@ export default function AdminBookingsPage() {
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{stats.active}</div>
               <div className="text-sm text-gray-600 dark:text-zinc-300">有效预定</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-500">{stats.expired}</div>
+              <div className="text-sm text-gray-600 dark:text-zinc-300">已过期</div>
             </div>
           </CardContent>
         </Card>
@@ -289,6 +312,7 @@ export default function AdminBookingsPage() {
                 <SelectContent>
                   <SelectItem value="all">所有状态</SelectItem>
                   <SelectItem value="active">有效</SelectItem>
+                  <SelectItem value="expired">已过期</SelectItem>
                   <SelectItem value="cancelled">已取消</SelectItem>
                 </SelectContent>
               </Select>
@@ -357,41 +381,41 @@ export default function AdminBookingsPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {filteredAndSortedBookings.map((booking) => (
+              {filteredAndSortedBookings.map((booking: Booking) => (
                 <TableRow key={booking.id}>
                   <TableCell>{booking.id}</TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <MapPin className="w-4 h-4 mr-1 text-gray-500" />
-                      {booking.room.name}
+                      {booking.room?.name || ''}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <User className="w-4 h-4 mr-1 text-gray-500" />
-                      {booking.member.name}
+                      {booking.member?.name || ''}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                      {formatDate(booking.date)}
+                      {formatDate(booking.date || '')}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1 text-gray-500" />
-                      {formatTime(booking.start_time, booking.end_time)}
+                      {formatTime(booking.start_time || '', booking.end_time || '')}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <Timer className="w-4 h-4 mr-1 text-gray-500" />
-                      {formatDuration(calculateDuration(booking.start_time, booking.end_time))}
+                      {formatDuration(calculateDuration(booking.start_time || '', booking.end_time || ''))}
                     </div>
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
-                    {booking.reason}
+                    {booking.reason || ''}
                   </TableCell>
                   <TableCell>
                     <Badge variant={
@@ -409,7 +433,7 @@ export default function AdminBookingsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
+                    {format(parseISO(booking.created_at || ''), 'yyyy-MM-dd HH:mm')}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -446,6 +470,30 @@ export default function AdminBookingsPage() {
           </Table>
         </CardContent>
       </Card>
+      {/* 分页控件 */}
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-sm text-gray-500 dark:text-gray-300">
+          第 {page} / {Math.max(1, Math.ceil(total / pageSize))} 页，共 {total} 条
+        </div>
+        <div className="flex gap-2 items-center">
+          <span>每页</span>
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={pageSize}
+            onChange={e => {
+              setPage(1);
+              setPageSize(Number(e.target.value));
+            }}
+          >
+            {[10, 20, 50, 100].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <span>条</span>
+          <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>上一页</Button>
+          <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(Math.ceil(total / pageSize) || 1, p + 1))} disabled={page >= Math.ceil(total / pageSize)}>下一页</Button>
+        </div>
+      </div>
 
       {/* 详情弹窗 */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
@@ -455,19 +503,19 @@ export default function AdminBookingsPage() {
             {detail && (
               <div className="space-y-2 text-sm text-gray-700 dark:text-zinc-300 mt-4">
                 <div>
-                  <strong>会议室：</strong>{detail.room.name}
+                  <strong>会议室：</strong>{detail.room?.name || ''}
                 </div>
                 <div>
-                  <strong>预定人：</strong>{detail.member.name}
+                  <strong>预定人：</strong>{detail.member?.name || ''}
                 </div>
                 <div>
-                  <strong>日期：</strong>{formatDate(detail.date)}
+                  <strong>日期：</strong>{formatDate(detail.date || '')}
                 </div>
                 <div>
-                  <strong>时间：</strong>{formatTime(detail.start_time, detail.end_time)}
+                  <strong>时间：</strong>{formatTime(detail.start_time || '', detail.end_time || '')}
                 </div>
                 <div>
-                  <strong>时长：</strong>{formatDuration(calculateDuration(detail.start_time, detail.end_time))}
+                  <strong>时长：</strong>{formatDuration(calculateDuration(detail.start_time || '', detail.end_time || ''))}
                 </div>
                 <div>
                   <strong>状态：</strong>
@@ -489,10 +537,10 @@ export default function AdminBookingsPage() {
                   <strong>参会人员:</strong> {detail.booking_users?.length > 0 ? detail.booking_users.map((user) => user.nickname).join(', ') : '-'}
                 </div>
                 <div>
-                  <strong>申请理由：</strong>{detail.reason}
+                  <strong>申请理由：</strong>{detail.reason || ''}
                 </div>
                 <div>
-                  <strong>创建时间：</strong>{format(parseISO(detail.created_at), 'yyyy-MM-dd HH:mm')}
+                  <strong>创建时间：</strong>{format(parseISO(detail.created_at || ''), 'yyyy-MM-dd HH:mm')}
                 </div>
               </div>
             )}

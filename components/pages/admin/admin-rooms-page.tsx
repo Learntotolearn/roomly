@@ -58,12 +58,17 @@ export default function AdminRoomsPage() {
     capacity: 6,
     is_open: true,
   });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  // 获取所有会议室
-  const { data: rooms, isLoading, error } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: roomApi.getAll,
+  // 获取所有会议室（分页）
+  const { data: roomsRes, isLoading, error } = useQuery<{ data: Room[]; total: number }>({
+    queryKey: ['rooms', page, pageSize],
+    queryFn: () => roomApi.getAll({ page, page_size: pageSize }),
   });
+  const rooms: Room[] = roomsRes?.data || [];
+  const total: number = roomsRes?.total || 0;
+  const totalPages = Math.ceil(total / pageSize);
 
   // 创建会议室
   const createRoomMutation = useMutation({
@@ -261,7 +266,7 @@ export default function AdminRoomsPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <MapPin className="w-5 h-5 mr-2" />
-            会议室列表 ({rooms?.length || 0})
+            会议室列表 ({total})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -278,7 +283,7 @@ export default function AdminRoomsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rooms?.length === 0 && (
+              {rooms.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center">
                     <div className="flex items-center justify-center">
@@ -287,7 +292,7 @@ export default function AdminRoomsPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {rooms?.map((room) => (
+              {rooms.map((room) => (
                 <TableRow key={room.id}>
                   <TableCell>{room.id}</TableCell>
                   <TableCell className="font-medium">{room.name}</TableCell>
@@ -349,6 +354,30 @@ export default function AdminRoomsPage() {
           </Table>
         </CardContent>
       </Card>
+      {/* 分页控件移到卡片外部 */}
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-sm text-gray-500 dark:text-gray-300">
+          第 {page} / {Math.max(1, totalPages)} 页，共 {total} 条
+        </div>
+        <div className="flex gap-2 items-center">
+          <span>每页</span>
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={pageSize}
+            onChange={e => {
+              setPage(1);
+              setPageSize(Number(e.target.value));
+            }}
+          >
+            {[10, 20, 50, 100].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <span>条</span>
+          <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>上一页</Button>
+          <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))} disabled={page >= totalPages}>下一页</Button>
+        </div>
+      </div>
 
       {/* 编辑会议室对话框 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

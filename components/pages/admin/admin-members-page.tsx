@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { memberApi } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,42 +27,35 @@ import { useMutation } from '@tanstack/react-query';
 import { useAppContext } from '@/lib/context/app-context';
 import type { Member } from '@/lib/types';
 
+// 防抖hook
+function useDebounce<T>(value: T, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function AdminMembersPage() {
   const queryClient = useQueryClient();
   const { Alert } = useAppContext();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  // 新增：防抖search
+  const debouncedSearch = useDebounce(search, 500);
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
-  // 所有 Hook 必须在顶层调用
-  const { data: allMembers, isLoading, error } = useQuery({
-    queryKey: ['members'],
-    queryFn: memberApi.getAll,
+  // 后端分页、搜索、角色过滤
+  const { data: membersRes, isLoading, error } = useQuery<{ data: Member[]; total: number }>({
+    queryKey: ['members', page, pageSize, debouncedSearch, roleFilter],
+    queryFn: () => memberApi.getAll({ page, page_size: pageSize, search: debouncedSearch, role: roleFilter }),
   });
-
-  // 前端过滤
-  const filteredMembers = useMemo(() => {
-    if (!allMembers) return [];
-    return allMembers.filter((m: Member) => {
-      const matchSearch = search === '' || m.name.includes(search) || String(m.id).includes(search);
-      const matchRole =
-        roleFilter === 'all' ||
-        (roleFilter === 'admin' && m.is_admin) ||
-        (roleFilter === 'room_admin' && !m.is_admin && m.is_room_admin) ||
-        (roleFilter === 'user' && !m.is_admin && !m.is_room_admin);
-      return matchSearch && matchRole;
-    });
-  }, [allMembers, search, roleFilter]);
-
-  // 前端分页
-  const total = filteredMembers.length;
+  const members: Member[] = membersRes?.data || [];
+  const total: number = membersRes?.total || 0;
   const totalPages = Math.ceil(total / pageSize);
-  const members = useMemo(
-    () => filteredMembers.slice((page - 1) * pageSize, page * pageSize),
-    [filteredMembers, page, pageSize]
-  );
 
   // 设置/取消会议室管理员
   const setRoomAdminMutation = useMutation({
@@ -219,18 +212,32 @@ export default function AdminMembersPage() {
               ))}
             </TableBody>
           </Table>
-          {/* 分页控件 */}
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-sm text-gray-500 dark:text-gray-300">
-              第 {page} / {totalPages || 1} 页
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={handlePrev} disabled={page === 1}>上一页</Button>
-              <Button size="sm" variant="outline" onClick={handleNext} disabled={page === totalPages || totalPages === 0}>下一页</Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
+      {/* 分页控件移到卡片外部 */}
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-sm text-gray-500 dark:text-gray-300">
+          第 {page} / {Math.max(1, totalPages)} 页，共 {total} 条
+        </div>
+        <div className="flex gap-2 items-center">
+          <span>每页</span>
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={pageSize}
+            onChange={e => {
+              setPage(1);
+              setPageSize(Number(e.target.value));
+            }}
+          >
+            {[10, 20, 50, 100].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <span>条</span>
+          <Button size="sm" variant="outline" onClick={handlePrev} disabled={page === 1}>上一页</Button>
+          <Button size="sm" variant="outline" onClick={handleNext} disabled={page === totalPages || totalPages === 0}>下一页</Button>
+        </div>
+      </div>
     </div>
   );
 } 

@@ -1,6 +1,6 @@
 import { Member, Room, Booking, BookingRequest, AvailableSlots } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8089/api';
 
 // 基础API调用函数
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -21,8 +21,19 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 // 会员相关API
 export const memberApi = {
-  // 获取所有会员（无分页，返回全量数组）
-  getAll: () => apiCall<Member[]>('/members'),
+  // 获取所有会员（支持分页、搜索、角色过滤）
+  getAll: (params?: { page?: number; page_size?: number; search?: string; role?: string }) => {
+    let url = '/members';
+    if (params) {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.append('page', String(params.page));
+      if (params.page_size) searchParams.append('page_size', String(params.page_size));
+      if (params.search) searchParams.append('search', params.search);
+      if (params.role) searchParams.append('role', params.role);
+      url += '?' + searchParams.toString();
+    }
+    return apiCall<{ data: Member[]; total: number }>(url);
+  },
   
   // 获取单个会员
   get: (id: number) => apiCall<Member>(`/members/${id}`),
@@ -64,15 +75,33 @@ export const memberApi = {
       body: JSON.stringify({ is_room_admin: isRoomAdmin }),
     }),
   
-  // 获取会员的预订记录
-  getBookings: (memberId: number) =>
-    apiCall<Booking[]>(`/members/${memberId}/bookings`),
+  // 获取会员预定（支持分页和分组）
+  getBookings: (memberId: number, params?: { page?: number; page_size?: number; status?: string }) => {
+    let url = `/members/${memberId}/bookings`;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.append('page', String(params.page));
+      if (params.page_size) searchParams.append('page_size', String(params.page_size));
+      if (params.status) searchParams.append('status', params.status);
+      url += '?' + searchParams.toString();
+    }
+    return apiCall<{ data: Booking[]; total: number }>(url);
+  },
 };
 
 // 会议室相关API
 export const roomApi = {
-  // 获取所有会议室
-  getAll: () => apiCall<Room[]>('/rooms'),
+  // 获取所有会议室（支持分页）
+  getAll: (params?: { page?: number; page_size?: number }) => {
+    let url = '/rooms';
+    if (params) {
+      const searchParams = new URLSearchParams();
+      if (params.page) searchParams.append('page', String(params.page));
+      if (params.page_size) searchParams.append('page_size', String(params.page_size));
+      url += '?' + searchParams.toString();
+    }
+    return apiCall<{ data: Room[]; total: number }>(url);
+  },
   
   // 获取开放的会议室
   getOpen: () => apiCall<Room[]>('/rooms/open'),
@@ -114,7 +143,16 @@ export const roomApi = {
 // 预订相关API
 export const bookingApi = {
   // 获取所有预订记录
-  getAll: () => apiCall<Booking[]>('/bookings'),
+  getAll: (params?: { page?: number; page_size?: number }) => {
+    let url = '/bookings';
+    if (params) {
+      const search = new URLSearchParams();
+      if (params.page) search.append('page', String(params.page));
+      if (params.page_size) search.append('page_size', String(params.page_size));
+      url += '?' + search.toString();
+    }
+    return apiCall<{ data: Booking[]; total: number }>(url);
+  },
   
   // 创建预订
   create: (booking: BookingRequest) =>

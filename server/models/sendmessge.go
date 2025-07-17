@@ -44,7 +44,7 @@ func SendMessageWithToken(userIDs []int, token string, date string, timeSlots []
 		end := getEndTime(timeSlots[len(timeSlots)-1])
 		meetingTime = fmt.Sprintf("%s %s-%s", date, start, end)
 	}
-	msg := fmt.Sprintf("## 📅 会议提醒\n\n**您有新的会议安排，请按时参加！**\n\n会议室：%s\n会议时间：%s\n会议发起人：%s", roomName, meetingTime, nickname)
+	msg := fmt.Sprintf("## 📢 会议提醒\n\n**您有新的会议安排，请按时参加！**\n\n会议室：%s\n会议时间：%s\n会议发起人：%s", roomName, meetingTime, nickname)
 	for _, userID := range userIDs {
 		response, err := client.SendBotMessage(userID, msg)
 		if err != nil {

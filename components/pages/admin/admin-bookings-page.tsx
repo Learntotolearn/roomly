@@ -38,7 +38,7 @@ import {
   Loader2,
   Timer
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isBefore } from 'date-fns';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/lib/context/app-context';
@@ -178,6 +178,16 @@ export default function AdminBookingsPage() {
       endTime = '24:00';
     }
     return `${startTime} - ${endTime}`;
+  };
+
+  // 判断预定是否过期
+  const isBookingExpired = (booking: Booking) => {
+    const endDateTime = new Date(`${booking.date}T${booking.end_time}:00`);
+    if (booking.end_time === '00:00') {
+      endDateTime.setDate(endDateTime.getDate() + 1);
+      endDateTime.setHours(0, 0, 0, 0);
+    }
+    return booking.status === 'active' && isBefore(endDateTime, new Date());
   };
 
   if (isLoading) {
@@ -384,8 +394,18 @@ export default function AdminBookingsPage() {
                     {booking.reason}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={booking.status === 'active' ? "default" : "secondary"}>
-                      {booking.status === 'active' ? '有效' : '已取消'}
+                    <Badge variant={
+                      booking.status === 'cancelled'
+                        ? 'secondary'
+                        : isBookingExpired(booking)
+                        ? 'secondary'
+                        : 'default'
+                    }>
+                      {booking.status === 'cancelled'
+                        ? '已取消'
+                        : isBookingExpired(booking)
+                        ? '已过期'
+                        : '有效'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -451,8 +471,18 @@ export default function AdminBookingsPage() {
                 </div>
                 <div>
                   <strong>状态：</strong>
-                  <Badge variant={detail.status === 'active' ? "default" : "secondary"}>
-                    {detail.status === 'active' ? '有效' : '已取消'}
+                  <Badge variant={
+                    detail.status === 'cancelled'
+                      ? 'secondary'
+                      : isBookingExpired(detail)
+                      ? 'secondary'
+                      : 'default'
+                  }>
+                    {detail.status === 'cancelled'
+                      ? '已取消'
+                      : isBookingExpired(detail)
+                      ? '已过期'
+                      : '有效'}
                   </Badge>
                 </div>
                 <div>

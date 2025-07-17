@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { Booking } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 
@@ -59,8 +59,32 @@ export default function MyBookingsPage() {
     return `${startTime} - ${endTime}`;
   };
 
-  // 按状态分组预定
-  const activeBookings = (bookings?.filter(booking => booking.status === 'active') || []).sort(
+  // 判断预定是否过期
+  const isBookingExpired = (booking: Booking) => {
+    // booking.date 格式: yyyy-MM-dd, end_time 格式: HH:mm
+    const endDateTime = new Date(`${booking.date}T${booking.end_time}:00`);
+    // 处理跨午夜的情况（如 end_time 为 00:00，表示24:00）
+    if (booking.end_time === '00:00') {
+      endDateTime.setDate(endDateTime.getDate() + 1);
+      endDateTime.setHours(0, 0, 0, 0);
+    }
+    return isBefore(endDateTime, new Date());
+  };
+
+  // 有效预定：未过期且active
+  const activeBookings = (bookings?.filter(
+    booking => booking.status === 'active' && !isBookingExpired(booking)
+  ) || []).sort(
+    (a, b) => {
+      const aDate = new Date(`${a.date} ${a.start_time}`);
+      const bDate = new Date(`${b.date} ${b.start_time}`);
+      return aDate.getTime() - bDate.getTime();
+    }
+  );
+  // 已过期预定：active但已过期
+  const expiredBookings = (bookings?.filter(
+    booking => booking.status === 'active' && isBookingExpired(booking)
+  ) || []).sort(
     (a, b) => {
       const aDate = new Date(`${a.date} ${a.start_time}`);
       const bDate = new Date(`${b.date} ${b.start_time}`);
@@ -167,6 +191,58 @@ export default function MyBookingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 已过期预定 */}
+      {expiredBookings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CalendarOff className="w-5 h-5 mr-2" />
+              已过期预定 ({expiredBookings.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {expiredBookings.map((booking: Booking) => (
+                <div key={booking.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-zinc-800">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                        <div className="flex items-center">
+                          <MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="font-medium text-gray-600 dark:text-zinc-300">{booking.room.name}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" />
+                          <span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-zinc-300">
+                        <strong>参会人员:</strong> {booking.booking_users?.length > 0 ? booking.booking_users.map((user) => user.nickname).join(', ') : '-'}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-zinc-300">
+                        <strong>申请理由:</strong> {booking.reason}
+                      </div>
+                      <div className="text-xs text-gray-400 dark:text-zinc-300">
+                        预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}
+                      </div>
+                    </div>
+                    <Badge variant="secondary">已过期</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 已取消预定 */}
       {cancelledBookings.length > 0 && (

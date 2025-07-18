@@ -248,6 +248,12 @@ func CancelBooking(c *gin.Context) {
 		return
 	}
 
+	// 幂等性校验
+	if booking.Status == "cancelled" {
+		c.JSON(http.StatusOK, gin.H{"message": "Booking already cancelled"})
+		return
+	}
+
 	booking.Status = "cancelled"
 	if err := database.DB.Save(&booking).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel booking"})
@@ -437,4 +443,16 @@ func markBookedSlots(allSlots []models.TimeSlot, bookings []models.Booking) []mo
 	}
 
 	return slotsWithStatus
+}
+
+func isBookingExpired(booking models.Booking) bool {
+	if booking.EndTime == "24:00" || booking.EndTime == "00:00" {
+		endDateTime, _ := time.Parse("2006-01-02 15:04:05", booking.Date+" 23:59:59")
+		return booking.Status == "active" && endDateTime.Before(time.Now())
+	}
+	endDateTime, err := time.Parse("2006-01-02 15:04", booking.Date+" "+booking.EndTime)
+	if err != nil {
+		return false
+	}
+	return booking.Status == "active" && endDateTime.Before(time.Now())
 }

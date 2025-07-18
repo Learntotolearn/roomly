@@ -18,7 +18,7 @@ func main() {
 	// 获取端口，默认为8080
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8089"
+		port = "8080"
 	}
 
 	// 启动服务器

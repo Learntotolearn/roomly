@@ -42,6 +42,7 @@ import { format, parseISO, isBefore } from 'date-fns';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/lib/context/app-context';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function AdminBookingsPage() {
   const { Confirm } = useAppContext();
@@ -416,7 +417,22 @@ export default function AdminBookingsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
-                    {booking.reason || ''}
+                    {booking.reason && booking.reason.length > 8 ? (
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-pointer">
+                              {booking.reason.slice(0, 8) + '...'}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {booking.reason}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span>{booking.reason || ''}</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={

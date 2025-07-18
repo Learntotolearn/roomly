@@ -290,8 +290,6 @@ func CancelBooking(c *gin.Context) {
 			token = authHeader
 		}
 	}
-	fmt.Printf("userIDs: %v\n", userIDs)
-	fmt.Printf("token: %s\n", token)
 	// 发送取消通知（消息内容由 sendmessge.go 内部组装）
 	if len(userIDs) > 0 {
 		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", "")

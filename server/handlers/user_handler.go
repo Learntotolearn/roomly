@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"roomly/models"
 	"strconv"
@@ -27,7 +26,6 @@ func SendMessageToUsers(c *gin.Context) {
 	date := c.Query("date")
 	timeSlots := c.QueryArray("time_slots[]")
 	roomName := c.Query("room_name")
-	fmt.Printf("收到发送消息请求，userIDs: %v, date: %s, timeSlots: %v, roomName: %s\n", userIDs, date, timeSlots, roomName)
 	if len(userIDs) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
 		return

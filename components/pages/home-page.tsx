@@ -5,7 +5,7 @@ import { roomApi } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, MapPin, Calendar, Loader2, RefreshCcw } from 'lucide-react';
+import { Users, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function HomePage() {

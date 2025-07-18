@@ -1,13 +1,13 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { memberApi, bookingApi } from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw } from 'lucide-react';
-import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Booking } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
@@ -17,25 +17,18 @@ export default function MyBookingsPage() {
   const queryClient = useQueryClient();
 
   // 三组独立分页状态
-  const pageSize = 10;
   // 有效预定
   const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
-  const [activePage, setActivePage] = useState(1);
   const [activeTotal, setActiveTotal] = useState(0);
   const [activeLoading, setActiveLoading] = useState(false);
-  const [activeHasMore, setActiveHasMore] = useState(true);
   // 已过期预定
   const [expiredBookings, setExpiredBookings] = useState<Booking[]>([]);
-  const [expiredPage, setExpiredPage] = useState(1);
   const [expiredTotal, setExpiredTotal] = useState(0);
   const [expiredLoading, setExpiredLoading] = useState(false);
-  const [expiredHasMore, setExpiredHasMore] = useState(true);
   // 已取消预定
   const [cancelledBookings, setCancelledBookings] = useState<Booking[]>([]);
-  const [cancelledPage, setCancelledPage] = useState(1);
   const [cancelledTotal, setCancelledTotal] = useState(0);
   const [cancelledLoading, setCancelledLoading] = useState(false);
-  const [cancelledHasMore, setCancelledHasMore] = useState(true);
 
   // 每组显示数量
   const [activeShowCount, setActiveShowCount] = useState(10);
@@ -45,7 +38,7 @@ export default function MyBookingsPage() {
   // 统一加载函数，只请求全部数据
   const loadBookings = useCallback(async () => {
     // 拉取全部数据，page_size 设大一点
-    let res = await memberApi.getBookings(currentMember!.id, { page: 1, page_size: 1000 });
+    const res = await memberApi.getBookings(currentMember!.id, { page: 1, page_size: 1000 });
     return { filtered: res.data, total: res.total };
   }, [currentMember]);
 
@@ -55,25 +48,19 @@ export default function MyBookingsPage() {
     setActiveLoading(true);
     setExpiredLoading(true);
     setCancelledLoading(true);
-    loadBookings().then(({ filtered, total }) => {
+    loadBookings().then(({ filtered }) => {
       // 前端分组
       const active = filtered.filter(b => b.status === 'active' && !isBookingExpired(b));
       const expired = filtered.filter(b => b.status === 'active' && isBookingExpired(b));
       const cancelled = filtered.filter(b => b.status === 'cancelled');
       setActiveBookings(active);
       setActiveTotal(active.length);
-      setActiveHasMore(false);
-      setActivePage(2);
       setActiveLoading(false);
       setExpiredBookings(expired);
       setExpiredTotal(expired.length);
-      setExpiredHasMore(false);
-      setExpiredPage(2);
       setExpiredLoading(false);
       setCancelledBookings(cancelled);
       setCancelledTotal(cancelled.length);
-      setCancelledHasMore(false);
-      setCancelledPage(2);
       setCancelledLoading(false);
     });
   }, [currentMember, loadBookings]);
@@ -84,33 +71,22 @@ export default function MyBookingsPage() {
     setActiveLoading(true);
     setExpiredLoading(true);
     setCancelledLoading(true);
-    loadBookings().then(({ filtered, total }) => {
+    loadBookings().then(({ filtered }) => {
       // 前端分组
       const active = filtered.filter(b => b.status === 'active' && !isBookingExpired(b));
       const expired = filtered.filter(b => b.status === 'active' && isBookingExpired(b));
       const cancelled = filtered.filter(b => b.status === 'cancelled');
       setActiveBookings(active);
       setActiveTotal(active.length);
-      setActiveHasMore(false);
-      setActivePage(2);
       setActiveLoading(false);
       setExpiredBookings(expired);
       setExpiredTotal(expired.length);
-      setExpiredHasMore(false);
-      setExpiredPage(2);
       setExpiredLoading(false);
       setCancelledBookings(cancelled);
       setCancelledTotal(cancelled.length);
-      setCancelledHasMore(false);
-      setCancelledPage(2);
       setCancelledLoading(false);
     });
   }, [currentMember, loadBookings]);
-
-  // 各分组加载更多（如需分页可扩展，否则直接禁用）
-  const loadMoreActive = async () => {};
-  const loadMoreExpired = async () => {};
-  const loadMoreCancelled = async () => {};
 
   // 取消预定的mutation
   const cancelBookingMutation = useMutation({
@@ -155,7 +131,7 @@ export default function MyBookingsPage() {
   const isBookingExpired = (booking: Booking) => {
     console.log('isBookingExpired called', booking);
     if (!booking || !booking.date || !booking.end_time) return false;
-    let endDateTime = new Date(`${booking.date}T${booking.end_time}:00`);
+    const endDateTime = new Date(`${booking.date}T${booking.end_time}:00`);
     if (isNaN(endDateTime.getTime())) return false;
     if (booking.end_time === '00:00') {
       endDateTime.setDate(endDateTime.getDate() + 1);
@@ -173,24 +149,6 @@ export default function MyBookingsPage() {
     });
     return isExpired;
   };
-
-  // 有效预定：未过期且active
-  const activeBookingsList = (bookings?: Booking[]) => {
-    console.log('activeBookingsList called', bookings);
-    return bookings?.filter(
-      booking => booking.status === 'active' && !isBookingExpired(booking)
-    ) || []
-  };
-  // 已过期预定：active但已过期
-  const expiredBookingsList = (bookings?: Booking[]) => {
-    console.log('expiredBookingsList called', bookings);
-    return bookings?.filter(
-      booking => booking.status === 'active' && isBookingExpired(booking)
-    ) || []
-  };
-  const cancelledBookingsList = (bookings?: Booking[]) => (
-    bookings?.filter(booking => booking.status === 'cancelled') || []
-  );
 
   if (
     activeLoading && activeBookings.length === 0 &&
@@ -291,7 +249,8 @@ export default function MyBookingsPage() {
               ))}
               {activeBookings.length > activeShowCount && (
                 <div className="flex justify-center mt-4">
-                  <Button onClick={() => setActiveShowCount(c => c + 10)}>
+                  <Button onClick={() => setActiveShowCount(c => c + 10)} disabled={activeLoading}>
+                    <RefreshCcw className={`w-4 h-4 mr-2${activeLoading ? ' animate-spin' : ''}`} />
                     加载更多
                   </Button>
                 </div>
@@ -355,7 +314,8 @@ export default function MyBookingsPage() {
                 ))}
                 {expiredBookings.length > expiredShowCount && (
                   <div className="flex justify-center mt-4">
-                    <Button onClick={() => setExpiredShowCount(c => c + 10)}>
+                    <Button onClick={() => setExpiredShowCount(c => c + 10)} disabled={expiredLoading}>
+                      <RefreshCcw className={`w-4 h-4 mr-2${expiredLoading ? ' animate-spin' : ''}`} />
                       加载更多
                     </Button>
                   </div>
@@ -420,7 +380,8 @@ export default function MyBookingsPage() {
                 ))}
                 {cancelledBookings.length > cancelledShowCount && (
                   <div className="flex justify-center mt-4">
-                    <Button onClick={() => setCancelledShowCount(c => c + 10)}>
+                    <Button onClick={() => setCancelledShowCount(c => c + 10)} disabled={cancelledLoading}>
+                      <RefreshCcw className={`w-4 h-4 mr-2${cancelledLoading ? ' animate-spin' : ''}`} />
                       加载更多
                     </Button>
                   </div>

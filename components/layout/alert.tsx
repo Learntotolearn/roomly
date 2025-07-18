@@ -54,9 +54,7 @@ export default function AlertLayout({ alerts }: { alerts: AlertLayoutProps[] }) 
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          {currentAlert.title && (
-            <AlertDialogTitle>{currentAlert.title}</AlertDialogTitle>
-          )}
+          <AlertDialogTitle>{currentAlert.title || "提示"}</AlertDialogTitle>
           {currentAlert.message && (
             <AlertDialogDescription>{currentAlert.message}</AlertDialogDescription>
           )}

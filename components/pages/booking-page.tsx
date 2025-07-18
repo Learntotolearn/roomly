@@ -79,11 +79,6 @@ export default function BookingPage() {
     mutationFn: (bookingData: BookingRequest) => bookingApi.create(bookingData),
     // 预约成功后，后端会自动异步发送会议通知，前端无需再单独请求消息推送接口。
     onSuccess: async () => {
-      if (participantUserIds.length > 0) {
-        const userInfo = await getUserInfo();
-        const token = userInfo?.token;
-        await userApi.getBasic(participantUserIds, token, selectedDate, selectedTimeSlots, selectedRoom?.name);
-      }
       // 失效相关的查询缓存
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });

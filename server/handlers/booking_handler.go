@@ -209,6 +209,13 @@ func CreateBooking(c *gin.Context) {
 	for _, user := range request.BookingUsers {
 		userIDs = append(userIDs, int(user.Userid))
 	}
+	// 查找所有会议室管理员 dootask_id
+	var adminIDs []int
+	var admins []models.Member
+	database.DB.Where("is_room_admin = ?", true).Find(&admins)
+	for _, admin := range admins {
+		adminIDs = append(adminIDs, int(admin.DootaskID))
+	}
 	// 从header获取token
 	authHeader := c.GetHeader("Authorization")
 	var token string
@@ -226,7 +233,7 @@ func CreateBooking(c *gin.Context) {
 		roomName = room.Name
 	}
 	// 异步发送会议通知
-	go models.SendMessageWithToken(userIDs, token, request.Date, request.TimeSlots, roomName)
+	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", "")
 
 	c.JSON(http.StatusCreated, booking)
 }
@@ -236,7 +243,7 @@ func CancelBooking(c *gin.Context) {
 	id := c.Param("id")
 
 	var booking models.Booking
-	if err := database.DB.First(&booking, id).Error; err != nil {
+	if err := database.DB.Preload("BookingUsers").Preload("Room").First(&booking, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
 		return
 	}
@@ -245,6 +252,43 @@ func CancelBooking(c *gin.Context) {
 	if err := database.DB.Save(&booking).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel booking"})
 		return
+	}
+
+	// 获取所有参会人员 userID
+	var userIDs []int
+	for _, user := range booking.BookingUsers {
+		userIDs = append(userIDs, int(user.Userid))
+	}
+	// 查找所有会议室管理员 dootask_id
+	var adminIDs []int
+	var admins []models.Member
+	database.DB.Where("is_room_admin = ?", true).Find(&admins)
+	for _, admin := range admins {
+		adminIDs = append(adminIDs, int(admin.DootaskID))
+	}
+	fmt.Printf("adminIDs: %v\n", adminIDs)
+	// 获取会议室名称
+	roomName := ""
+	if booking.Room.Name != "" {
+		roomName = booking.Room.Name
+	}
+	// 组装时间段
+	timeSlots := []string{booking.StartTime, booking.EndTime}
+	// 获取 token
+	authHeader := c.GetHeader("Authorization")
+	var token string
+	if len(authHeader) > 0 {
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		} else {
+			token = authHeader
+		}
+	}
+	fmt.Printf("userIDs: %v\n", userIDs)
+	fmt.Printf("token: %s\n", token)
+	// 发送取消通知（消息内容由 sendmessge.go 内部组装）
+	if len(userIDs) > 0 {
+		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})

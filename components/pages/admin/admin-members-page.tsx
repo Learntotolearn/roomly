@@ -215,10 +215,10 @@ export default function AdminMembersPage() {
         </CardContent>
       </Card>
       {/* 分页控件移到卡片外部 */}
-      <div className="flex justify-between items-center mt-4">
-        <div className="text-sm text-gray-500 dark:text-gray-300">
+          <div className="flex justify-between items-center mt-4">
+            <div className="text-sm text-gray-500 dark:text-gray-300">
           第 {page} / {Math.max(1, totalPages)} 页，共 {total} 条
-        </div>
+            </div>
         <div className="flex gap-2 items-center">
           <span>每页</span>
           <select
@@ -234,10 +234,10 @@ export default function AdminMembersPage() {
             ))}
           </select>
           <span>条</span>
-          <Button size="sm" variant="outline" onClick={handlePrev} disabled={page === 1}>上一页</Button>
-          <Button size="sm" variant="outline" onClick={handleNext} disabled={page === totalPages || totalPages === 0}>下一页</Button>
-        </div>
-      </div>
+              <Button size="sm" variant="outline" onClick={handlePrev} disabled={page === 1}>上一页</Button>
+              <Button size="sm" variant="outline" onClick={handleNext} disabled={page === totalPages || totalPages === 0}>下一页</Button>
+            </div>
+          </div>
     </div>
   );
 } 

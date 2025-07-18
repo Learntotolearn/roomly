@@ -1,4 +1,5 @@
 import { Member, Room, Booking, BookingRequest, AvailableSlots } from './types';
+import { getUserInfo } from '@dootask/tools';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8089/api';
 
@@ -155,17 +156,39 @@ export const bookingApi = {
   },
   
   // 创建预订
-  create: (booking: BookingRequest) =>
-    apiCall<Booking>('/bookings', {
+  create: async (booking: BookingRequest) => {
+    let token = '';
+    try {
+      const userInfo = await getUserInfo();
+      token = userInfo?.token || '';
+    } catch {
+      token = localStorage.getItem('token') || '';
+    }
+    return apiCall<Booking>('/bookings', {
       method: 'POST',
       body: JSON.stringify(booking),
-    }),
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  },
   
   // 取消预订
-  cancel: (id: number) =>
-    apiCall<{ message: string }>(`/bookings/${id}/cancel`, {
+  cancel: async (id: number) => {
+    let token = '';
+    try {
+      const userInfo = await getUserInfo();
+      token = userInfo?.token || '';
+    } catch {
+      token = localStorage.getItem('token') || '';
+    }
+    return apiCall<{ message: string }>(`/bookings/${id}/cancel`, {
       method: 'PUT',
-    }),
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  },
   
   // 获取可用时间段
   getAvailableSlots: (roomId: number, date: string) =>

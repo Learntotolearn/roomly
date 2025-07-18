@@ -43,6 +43,35 @@ export default function MyBookingsPage() {
     return { filtered: res.data, total: res.total };
   }, [currentMember]);
 
+  // 统一刷新三组数据的函数
+  const reloadAllBookings = useCallback(() => {
+    if (!currentMember?.id) return;
+    setActiveLoading(true);
+    setExpiredLoading(true);
+    setCancelledLoading(true);
+    Promise.all([
+      loadBookings('active', 1),
+      loadBookings('expired', 1),
+      loadBookings('cancelled', 1)
+    ]).then(([a, e, c]) => {
+      setActiveBookings(a.filtered);
+      setActiveTotal(a.total);
+      setActiveHasMore(a.filtered.length >= 5 && a.filtered.length < a.total);
+      setActivePage(2);
+      setActiveLoading(false);
+      setExpiredBookings(e.filtered);
+      setExpiredTotal(e.total);
+      setExpiredHasMore(e.filtered.length >= 5 && e.filtered.length < e.total);
+      setExpiredPage(2);
+      setExpiredLoading(false);
+      setCancelledBookings(c.filtered);
+      setCancelledTotal(c.total);
+      setCancelledHasMore(c.filtered.length >= 5 && c.filtered.length < c.total);
+      setCancelledPage(2);
+      setCancelledLoading(false);
+    });
+  }, [currentMember, loadBookings]);
+
   // 首次加载
   useEffect(() => {
     if (!currentMember?.id) return;
@@ -104,6 +133,8 @@ export default function MyBookingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });
+      // 新增：取消成功后刷新三组数据
+      reloadAllBookings();
     },
   });
 

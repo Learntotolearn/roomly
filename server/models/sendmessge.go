@@ -1,11 +1,12 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/dootask/tools/go/utils"
+	dootask "github.com/dootask/tools/server/go"
 )
 
 func getEndTime(start string) string {
@@ -24,10 +25,34 @@ func getEndTime(start string) string {
 	return fmt.Sprintf("%02d:%02d", hour, minute)
 }
 
-// SendMessageWithToken 用指定 token 给多个用户发送消息
-func SendMessageWithToken(userIDs []int, token string, date string, timeSlots []string, roomName string) {
-	client := utils.NewClient(token)
-	user, err := client.GetUserInfo()
+// DooTaskClient 封装 dootask.Client
+// 你可以将它放到 utils.go 或单独文件
+// 这里只做内嵌实现
+
+type DooTaskClient struct {
+	Client *dootask.Client
+}
+
+func NewDooTaskClient(token string) DooTaskClient {
+	return DooTaskClient{Client: dootask.NewClient(token, dootask.WithServer("http://127.0.0.1"))}
+}
+
+func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
+	if userID == 0 {
+		return errors.New("userID is required")
+	}
+	return d.Client.SendBotMessage(dootask.SendBotMessageRequest{
+		UserID:  int(userID),
+		Text:    message,
+		BotType: "dootask-meeting",
+		BotName: "会议室通知",
+	})
+}
+
+// SendMessageWithToken 用指定 token 给多个用户发送消息，msgType 支持 'remind'（会议提醒）、'cancel'（会议取消），如有 msgContent 则优先用自定义内容
+func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, msgContent ...string) {
+	client := NewDooTaskClient(token)
+	user, err := client.Client.GetUserInfo()
 	var nickname string
 	if err == nil {
 		nickname = user.Nickname
@@ -44,13 +69,85 @@ func SendMessageWithToken(userIDs []int, token string, date string, timeSlots []
 		end := getEndTime(timeSlots[len(timeSlots)-1])
 		meetingTime = fmt.Sprintf("%s %s-%s", date, start, end)
 	}
-	msg := fmt.Sprintf("## 📢 会议提醒\n\n**您有新的会议安排，请按时参加！**\n\n会议室：%s\n会议时间：%s\n会议发起人：%s", roomName, meetingTime, nickname)
-	for _, userID := range userIDs {
-		response, err := client.SendBotMessage(userID, msg)
+	// 通知所有参会人员
+	var msg string
+	if len(msgContent) > 0 && msgContent[0] != "" {
+		msg = msgContent[0]
+	} else {
+		switch msgType {
+		case "cancel":
+			msg = fmt.Sprintf(`## ❌  会议取消通知
+### **您参与的会议已被取消**
+
+- **会议室**：%s
+- **原定时间**：%s
+- **会议发起人**：%s
+
+> 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, nickname)
+		default:
+			msg = fmt.Sprintf(`## 📢  会议提醒
+### **您有新的会议安排，请按时参加！**
+
+- **会议室**：%s
+- **会议时间**：%s
+- **会议发起人**：%s`, roomName, meetingTime, nickname)
+		}
+	}
+	// 对 userIDs 去重
+	userIDMap := make(map[int]struct{})
+	var uniqueUserIDs []int
+	for _, id := range userIDs {
+		if _, exists := userIDMap[id]; !exists {
+			userIDMap[id] = struct{}{}
+			uniqueUserIDs = append(uniqueUserIDs, id)
+		}
+	}
+	// 对 adminIDs 去重
+	adminIDMap := make(map[int]struct{})
+	var uniqueAdminIDs []int
+	for _, id := range adminIDs {
+		if _, exists := adminIDMap[id]; !exists {
+			adminIDMap[id] = struct{}{}
+			uniqueAdminIDs = append(uniqueAdminIDs, id)
+		}
+	}
+	for _, userID := range uniqueUserIDs {
+		err := client.SendBotMessage(uint(userID), msg)
 		if err != nil {
-			fmt.Printf("发送消息给用户%d失败: %v\n", userID, err)
+			fmt.Printf("发送消息给用户%d失败: %v, %s\n", userID, err, nickname)
 			continue
 		}
-		fmt.Printf("消息发送成功: %+v\n", response)
+		fmt.Printf("消息发送成功: %d, %s\n", userID, nickname)
+	}
+
+	// 通知所有会议室管理员
+	for _, adminID := range uniqueAdminIDs {
+		adminToken := token
+		adminClient := NewDooTaskClient(adminToken)
+		var adminMsg string
+		switch msgType {
+		case "cancel":
+			adminMsg = fmt.Sprintf(`## ❌  会议室预定取消提醒
+### **有会议室预定被取消，请关注。**
+
+- **会议室**：%s
+- **原定时间**：%s
+- **会议发起人**：%s
+`, roomName, meetingTime, nickname)
+		default:
+			adminMsg = fmt.Sprintf(`## 📢  会议室新预定提醒
+### **会议室有新预定，请关注。**
+
+- **会议室**：%s
+- **时间**：%s
+- **会议发起人**：%s
+`, roomName, meetingTime, nickname)
+		}
+		err := adminClient.SendBotMessage(uint(adminID), adminMsg)
+		if err != nil {
+			fmt.Printf("发送消息给管理员%d失败: %v, %s\n", adminID, err, nickname)
+			continue
+		}
+		fmt.Printf("管理员消息发送成功: %+v, %s\n", adminID, nickname)
 	}
 }

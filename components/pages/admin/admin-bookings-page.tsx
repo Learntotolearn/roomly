@@ -57,7 +57,7 @@ export default function AdminBookingsPage() {
   const [pageSize, setPageSize] = useState(20);
 
   // 获取所有预定记录
-  const { data: bookingsRes, isLoading, error } = useQuery<{ data: Booking[]; total: number }>({
+  const { data: bookingsRes, isLoading, error, refetch } = useQuery<{ data: Booking[]; total: number }>({
     queryKey: ['bookings', page, pageSize],
     queryFn: () => bookingApi.getAll({ page, page_size: pageSize }),
   });
@@ -70,6 +70,7 @@ export default function AdminBookingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
+      refetch(); // 新增：主动刷新当前页
     },
   });
 

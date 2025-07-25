@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { callExtraStore } from '@dootask/tools';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Table, 
@@ -113,7 +114,8 @@ export default function AdminBookingsPage() {
       message: '确定要导出预定记录吗？',
       onConfirm: () => {
         const url = exportApi.exportBookings(params);
-        window.open(url, '_blank');
+        //window.open(url, '_blank');
+        callExtraStore("downUrl", url)
       },
     });
   };

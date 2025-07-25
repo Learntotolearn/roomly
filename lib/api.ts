@@ -144,12 +144,15 @@ export const roomApi = {
 // 预订相关API
 export const bookingApi = {
   // 获取所有预订记录
-  getAll: (params?: { page?: number; page_size?: number }) => {
+  getAll: (params?: { page?: number; page_size?: number; start_date?: string; end_date?: string; status?: string }) => {
     let url = '/bookings';
     if (params) {
       const search = new URLSearchParams();
       if (params.page) search.append('page', String(params.page));
       if (params.page_size) search.append('page_size', String(params.page_size));
+      if (params.start_date) search.append('start_date', params.start_date);
+      if (params.end_date) search.append('end_date', params.end_date);
+      if (params.status) search.append('status', params.status);
       url += '?' + search.toString();
     }
     return apiCall<{ data: Booking[]; total: number }>(url);

@@ -41,7 +41,7 @@ import {
   ChevronDownIcon
 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { format, parseISO, isBefore, isToday } from 'date-fns';
+import { format, parseISO, isBefore } from 'date-fns';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/lib/context/app-context';
@@ -66,7 +66,6 @@ export default function AdminBookingsPage() {
   // 临时区间选择，仅在弹窗内用
   const [tempRange, setTempRange] = useState<{ from: Date | undefined; to?: Date | undefined }>({ from: undefined, to: undefined });
   const [openStartCalendar, setOpenStartCalendar] = useState(false);
-  const [openEndCalendar, setOpenEndCalendar] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -77,7 +76,7 @@ export default function AdminBookingsPage() {
     queryKey: ['bookings', page, pageSize, startDate, endDate, statusFilter],
     queryFn: () => bookingApi.getAll({ page, page_size: pageSize, start_date: startDate, end_date: endDate, status: statusFilter !== 'all' ? statusFilter : undefined }),
   });
-  const bookings: Booking[] = bookingsRes?.data || [];
+  const bookings: Booking[] = useMemo(() => bookingsRes?.data || [], [bookingsRes]);
   const total: number = bookingsRes?.total || 0;
 
   // 取消预定

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bookingApi, exportApi } from '@/lib/api';
 import type { Booking } from '@/lib/types';
@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { 
-  Calendar, 
+  Calendar as LucideCalendar, 
   Clock, 
   MapPin, 
   User, 
@@ -36,13 +36,17 @@ import {
   Filter,
   Search,
   Loader2,
-  Timer
+  Timer,
+  ChevronDownIcon
 } from 'lucide-react';
-import { format, parseISO, isBefore } from 'date-fns';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { format, parseISO, isBefore, isToday } from 'date-fns';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppContext } from '@/lib/context/app-context';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Calendar } from '@/components/ui/calendar';
+import { zhCN } from 'date-fns/locale';
 
 export default function AdminBookingsPage() {
   const { Confirm } = useAppContext();
@@ -56,11 +60,21 @@ export default function AdminBookingsPage() {
   // 分页相关
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [startDate, setStartDate] = useState<string | undefined>(undefined);
+  const [endDate, setEndDate] = useState<string | undefined>(undefined);
+  // 临时区间选择，仅在弹窗内用
+  const [tempRange, setTempRange] = useState<{ from: Date | undefined; to?: Date | undefined }>({ from: undefined, to: undefined });
+  const [openStartCalendar, setOpenStartCalendar] = useState(false);
+  const [openEndCalendar, setOpenEndCalendar] = useState(false);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, sortBy, sortOrder]);
 
   // 获取所有预定记录
   const { data: bookingsRes, isLoading, error, refetch } = useQuery<{ data: Booking[]; total: number }>({
-    queryKey: ['bookings', page, pageSize],
-    queryFn: () => bookingApi.getAll({ page, page_size: pageSize }),
+    queryKey: ['bookings', page, pageSize, startDate, endDate, statusFilter],
+    queryFn: () => bookingApi.getAll({ page, page_size: pageSize, start_date: startDate, end_date: endDate, status: statusFilter !== 'all' ? statusFilter : undefined }),
   });
   const bookings: Booking[] = bookingsRes?.data || [];
   const total: number = bookingsRes?.total || 0;
@@ -90,6 +104,8 @@ export default function AdminBookingsPage() {
   const handleExport = () => {
     const params = {
       ...(statusFilter !== 'all' && { status: statusFilter }),
+      ...(startDate && { start_date: startDate }),
+      ...(endDate && { end_date: endDate }),
     };
     
     Confirm({
@@ -137,7 +153,12 @@ export default function AdminBookingsPage() {
         matchesStatus = booking.status === 'cancelled';
       }
 
-      return matchesSearch && matchesStatus;
+      // 日期过滤
+      let matchesDate = true;
+      if (startDate && booking.date < startDate) matchesDate = false;
+      if (endDate && booking.date > endDate) matchesDate = false;
+
+      return matchesSearch && matchesStatus && matchesDate;
     });
 
     // 排序
@@ -175,7 +196,7 @@ export default function AdminBookingsPage() {
     });
 
     return filtered;
-  }, [bookings, searchTerm, statusFilter, sortBy, sortOrder]);
+  }, [bookings, searchTerm, statusFilter, sortBy, sortOrder, startDate, endDate]);
 
   // 统计信息
   const stats = useMemo(() => {
@@ -291,7 +312,8 @@ export default function AdminBookingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 2xl:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 2xl:gap-8">
+            {/* 搜索 */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="search">搜索</Label>
               <div className="relative">
@@ -301,10 +323,74 @@ export default function AdminBookingsPage() {
                   placeholder="搜索会议室、会员或理由"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 w-full"
                 />
               </div>
             </div>
+            {/* 选择日期区间（提前到第二列） */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="date-range">选择日期区间</Label>
+              <Popover open={openStartCalendar} onOpenChange={(open) => {
+                if (open) {
+                  setTempRange({
+                    from: startDate ? new Date(startDate) : undefined,
+                    to: endDate ? new Date(endDate) : undefined,
+                  });
+                }
+                setOpenStartCalendar(open);
+              }}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="flex items-center w-full px-3 font-normal justify-between">
+                    {startDate && endDate ? (
+                      <span className="truncate flex-shrink min-w-0">
+                        {startDate} ~ {endDate}
+                      </span>
+                    ) : <span className="truncate flex-shrink min-w-0">请选择日期区间</span>}
+                    <ChevronDownIcon className="ml-2 flex-shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                  <div className="p-2">
+                    <Calendar
+                      mode="range"
+                      locale={zhCN}
+                      weekStartsOn={0}
+                      selected={tempRange}
+                      onSelect={(range) => {
+                        if (range && typeof range === 'object' && 'from' in range) {
+                          setTempRange({ from: range.from, to: range.to });
+                        } else {
+                          setTempRange({ from: undefined, to: undefined });
+                        }
+                      }}
+                      captionLayout="dropdown"
+                    />
+                    <div className="flex justify-between items-center mt-2 px-2">
+                      <span className="text-xs text-gray-400">选择时间</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => { setTempRange({ from: undefined, to: undefined }); }}>清空</Button>
+                        <Button size="sm" className="bg-[#65a30d] text-white hover:bg-[#4d7c0f]" onClick={() => {
+                          if (tempRange.from) {
+                            setStartDate(format(tempRange.from, 'yyyy-MM-dd'));
+                            if (tempRange.to) {
+                              setEndDate(format(tempRange.to, 'yyyy-MM-dd'));
+                            } else {
+                              setEndDate(undefined);
+                            }
+                          } else {
+                            setStartDate(undefined);
+                            setEndDate(undefined);
+                          }
+                          setPage(1);
+                          setOpenStartCalendar(false);
+                        }}>确定</Button>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            {/* 状态筛选（移到第三列） */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="status">状态</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -319,6 +405,7 @@ export default function AdminBookingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* 排序方式 */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="sort">排序方式</Label>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -333,6 +420,7 @@ export default function AdminBookingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* 排序顺序 */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="order">排序顺序</Label>
               <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
@@ -400,7 +488,7 @@ export default function AdminBookingsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-1 text-gray-500" />
+                      <LucideCalendar className="w-4 h-4 mr-1 text-gray-500" />
                       {formatDate(booking.date || '')}
                     </div>
                   </TableCell>

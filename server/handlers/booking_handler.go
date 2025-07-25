@@ -27,8 +27,22 @@ func GetBookings(c *gin.Context) {
 		pageSize = 20
 	}
 
+	// 解析日期筛选参数
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	status := c.Query("status")
+
 	var total int64
 	db := database.DB.Model(&models.Booking{})
+	if startDate != "" {
+		db = db.Where("date >= ?", startDate)
+	}
+	if endDate != "" {
+		db = db.Where("date <= ?", endDate)
+	}
+	if status != "" {
+		db = db.Where("status = ?", status)
+	}
 	db.Count(&total)
 
 	var bookings []models.Booking

@@ -73,8 +73,8 @@ export default function AdminBookingsPage() {
 
   // 获取所有预定记录
   const { data: bookingsRes, isLoading, error, refetch } = useQuery<{ data: Booking[]; total: number }>({
-    queryKey: ['bookings', page, pageSize, startDate, endDate, statusFilter],
-    queryFn: () => bookingApi.getAll({ page, page_size: pageSize, start_date: startDate, end_date: endDate, status: statusFilter !== 'all' ? statusFilter : undefined }),
+    queryKey: ['bookings', page, pageSize, startDate, endDate, statusFilter, sortBy, sortOrder],
+    queryFn: () => bookingApi.getAll({ page, page_size: pageSize, start_date: startDate, end_date: endDate, status: statusFilter !== 'all' ? statusFilter : undefined, sort_by: sortBy, sort_order: sortOrder }),
   });
   const bookings: Booking[] = useMemo(() => bookingsRes?.data || [], [bookingsRes]);
   const total: number = bookingsRes?.total || 0;
@@ -130,66 +130,6 @@ export default function AdminBookingsPage() {
     }
     return booking.status === 'active' && isBefore(endDateTime, new Date());
   };
-
-  // 过滤和排序逻辑（仅用于统计，不用于表格渲染）
-  const filteredAndSortedBookings = useMemo(() => {
-    if (!bookings) return [];
-    // 仅用于统计和导出，不再用于表格渲染
-    const filtered = bookings.filter(Boolean).filter((booking: Booking) => {
-      // 搜索过滤
-      const matchesSearch = searchTerm === '' || 
-        (booking.room?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (booking.member?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (booking.reason?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-      // 状态过滤
-      let matchesStatus = false;
-      if (statusFilter === 'all') {
-        matchesStatus = true;
-      } else if (statusFilter === 'active') {
-        matchesStatus = booking.status === 'active' && !isBookingExpired(booking);
-      } else if (statusFilter === 'expired') {
-        matchesStatus = booking.status === 'expired';
-      } else if (statusFilter === 'cancelled') {
-        matchesStatus = booking.status === 'cancelled';
-      }
-      // 日期过滤
-      let matchesDate = true;
-      if (startDate && booking.date < startDate) matchesDate = false;
-      if (endDate && booking.date > endDate) matchesDate = false;
-      return matchesSearch && matchesStatus && matchesDate;
-    });
-    // 排序
-    filtered.sort((a: Booking, b: Booking) => {
-      let aValue, bValue;
-      switch (sortBy) {
-        case 'date':
-          aValue = new Date(`${a.date || ''} ${a.start_time || ''}`);
-          bValue = new Date(`${b.date || ''} ${b.start_time || ''}`);
-          break;
-        case 'room':
-          aValue = a.room?.name || '';
-          bValue = b.room?.name || '';
-          break;
-        case 'member':
-          aValue = a.member?.name || '';
-          bValue = b.member?.name || '';
-          break;
-        case 'created':
-          aValue = new Date(a.created_at || '');
-          bValue = new Date(b.created_at || '');
-          break;
-        default:
-          aValue = a.id;
-          bValue = b.id;
-      }
-      if (a.status === 'cancelled') return 1;
-      if (b.status === 'cancelled') return -1;
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return filtered;
-  }, [bookings, searchTerm, statusFilter, sortBy, sortOrder, startDate, endDate]);
 
   // 统计信息
   const stats = useMemo(() => {

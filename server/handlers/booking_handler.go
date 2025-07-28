@@ -32,6 +32,21 @@ func GetBookings(c *gin.Context) {
 	endDate := c.Query("end_date")
 	status := c.Query("status")
 
+	// 解析排序参数
+	sortBy := c.DefaultQuery("sort_by", "date")
+	sortOrder := c.DefaultQuery("sort_order", "desc")
+	orderStr := "id desc"
+	switch sortBy {
+	case "date":
+		orderStr = "date " + sortOrder + ", start_time " + sortOrder
+	case "room":
+		orderStr = "room_id " + sortOrder
+	case "member":
+		orderStr = "member_id " + sortOrder
+	case "created":
+		orderStr = "created_at " + sortOrder
+	}
+
 	var total int64
 	db := database.DB.Model(&models.Booking{})
 	if startDate != "" {
@@ -51,7 +66,7 @@ func GetBookings(c *gin.Context) {
 	db.Count(&total)
 
 	var bookings []models.Booking
-	db = db.Preload("Room").Preload("Member").Preload("BookingUsers").Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize)
+	db = db.Preload("Room").Preload("Member").Preload("BookingUsers").Order(orderStr).Limit(pageSize).Offset((page - 1) * pageSize)
 	if err := db.Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
 		return

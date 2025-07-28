@@ -131,17 +131,16 @@ export default function AdminBookingsPage() {
     return booking.status === 'active' && isBefore(endDateTime, new Date());
   };
 
-  // 过滤和排序逻辑
+  // 过滤和排序逻辑（仅用于统计，不用于表格渲染）
   const filteredAndSortedBookings = useMemo(() => {
     if (!bookings) return [];
-
+    // 仅用于统计和导出，不再用于表格渲染
     const filtered = bookings.filter(Boolean).filter((booking: Booking) => {
       // 搜索过滤
       const matchesSearch = searchTerm === '' || 
         (booking.room?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (booking.member?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (booking.reason?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-
       // 状态过滤
       let matchesStatus = false;
       if (statusFilter === 'all') {
@@ -149,23 +148,19 @@ export default function AdminBookingsPage() {
       } else if (statusFilter === 'active') {
         matchesStatus = booking.status === 'active' && !isBookingExpired(booking);
       } else if (statusFilter === 'expired') {
-        matchesStatus = booking.status === 'active' && isBookingExpired(booking);
+        matchesStatus = booking.status === 'expired';
       } else if (statusFilter === 'cancelled') {
         matchesStatus = booking.status === 'cancelled';
       }
-
       // 日期过滤
       let matchesDate = true;
       if (startDate && booking.date < startDate) matchesDate = false;
       if (endDate && booking.date > endDate) matchesDate = false;
-
       return matchesSearch && matchesStatus && matchesDate;
     });
-
     // 排序
     filtered.sort((a: Booking, b: Booking) => {
       let aValue, bValue;
-
       switch (sortBy) {
         case 'date':
           aValue = new Date(`${a.date || ''} ${a.start_time || ''}`);
@@ -187,15 +182,12 @@ export default function AdminBookingsPage() {
           aValue = a.id;
           bValue = b.id;
       }
-
       if (a.status === 'cancelled') return 1;
       if (b.status === 'cancelled') return -1;
-
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
-
     return filtered;
   }, [bookings, searchTerm, statusFilter, sortBy, sortOrder, startDate, endDate]);
 
@@ -206,7 +198,7 @@ export default function AdminBookingsPage() {
     return {
       total: total,
       active: bookings.filter((b: Booking) => b.status === 'active' && !isBookingExpired(b)).length,
-      expired: bookings.filter((b: Booking) => b.status === 'active' && isBookingExpired(b)).length,
+      expired: bookings.filter((b: Booking) => b.status === 'expired').length,
       cancelled: bookings.filter((b: Booking) => b.status === 'cancelled').length,
       today: bookings.filter((b: Booking) => b.date === today && b.status === 'active').length,
     };
@@ -443,7 +435,7 @@ export default function AdminBookingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <FileText className="w-5 h-5 mr-2" />
-            预定列表 ({filteredAndSortedBookings.length})
+            预定列表 ({bookings.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -463,7 +455,7 @@ export default function AdminBookingsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedBookings.length === 0 && (
+              {bookings.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center">
                     <div className="flex items-center justify-center">
@@ -472,7 +464,7 @@ export default function AdminBookingsPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {filteredAndSortedBookings.map((booking: Booking) => (
+              {bookings.map((booking: Booking) => (
                 <TableRow key={booking.id}>
                   <TableCell>{booking.id}</TableCell>
                   <TableCell>
@@ -527,13 +519,13 @@ export default function AdminBookingsPage() {
                     <Badge variant={
                       booking.status === 'cancelled'
                         ? 'secondary'
-                        : isBookingExpired(booking)
+                        : booking.status === 'expired'
                         ? 'secondary'
                         : 'default'
                     }>
                       {booking.status === 'cancelled'
                         ? '已取消'
-                        : isBookingExpired(booking)
+                        : booking.status === 'expired'
                         ? '已过期'
                         : '有效'}
                     </Badge>
@@ -628,13 +620,13 @@ export default function AdminBookingsPage() {
                   <Badge variant={
                     detail.status === 'cancelled'
                       ? 'secondary'
-                      : isBookingExpired(detail)
+                      : detail.status === 'expired'
                       ? 'secondary'
                       : 'default'
                   }>
                     {detail.status === 'cancelled'
                       ? '已取消'
-                      : isBookingExpired(detail)
+                      : detail.status === 'expired'
                       ? '已过期'
                       : '有效'}
                   </Badge>

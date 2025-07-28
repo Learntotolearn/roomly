@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.3
 
 require (
-	github.com/dootask/tools/go v0.0.0-20250716041803-1b7b9e08868f
+	github.com/dootask/tools/server/go v0.0.0-20250717040353-7e9cc89be08c
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
 	github.com/tealeg/xlsx v1.0.5
@@ -17,7 +17,6 @@ require (
 	github.com/bytedance/sonic v1.13.3 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
-	github.com/dootask/tools/server/go v0.0.0-20250717040353-7e9cc89be08c // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

@@ -9,8 +9,6 @@ github.com/cloudwego/iasm v0.2.0/go.mod h1:8rXZaNYT2n95jn+zTI1sDr+IgcD2GVs0nlbbQ
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dootask/tools/go v0.0.0-20250716041803-1b7b9e08868f h1:LQ5vPmuV4pMhYYd2afWBr2CY4UNA+2/3ZxIe3V/9K6I=
-github.com/dootask/tools/go v0.0.0-20250716041803-1b7b9e08868f/go.mod h1:sPfdTpzkMDS0FzIu7ztj9FS33YiAZElf++ShO6O6E70=
 github.com/dootask/tools/server/go v0.0.0-20250717040353-7e9cc89be08c h1:TaUYF5MtdSoBg0tzNEqq5Xf2XZzhyw2zZSPrBgmC/UA=
 github.com/dootask/tools/server/go v0.0.0-20250717040353-7e9cc89be08c/go.mod h1:QTdgJGF8hr4pPTl7200zQbYJ2K0ag7UX5l2Tlm6LhgU=
 github.com/gabriel-vasile/mimetype v1.4.9 h1:5k+WDwEsD9eTLL8Tz3L0VnmVh9QxGjRmjBvAG7U/oYY=

@@ -27,7 +27,7 @@ export interface Booking {
   start_time: string;
   end_time: string;
   reason: string;
-  status: 'active' | 'cancelled';
+  status: 'active' | 'cancelled' | 'expired';
   created_at: string;
   updated_at: string;
   room: Room;

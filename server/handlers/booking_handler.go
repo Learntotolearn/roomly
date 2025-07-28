@@ -40,8 +40,13 @@ func GetBookings(c *gin.Context) {
 	if endDate != "" {
 		db = db.Where("date <= ?", endDate)
 	}
-	if status != "" {
-		db = db.Where("status = ?", status)
+	// 修复：支持expired状态
+	if status == "active" {
+		db = db.Where("status = ?", "active")
+	} else if status == "expired" {
+		db = db.Where("status = ?", "expired")
+	} else if status == "cancelled" {
+		db = db.Where("status = ?", "cancelled")
 	}
 	db.Count(&total)
 

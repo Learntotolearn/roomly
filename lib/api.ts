@@ -1,7 +1,7 @@
-import { Member, Room, Booking, BookingRequest, AvailableSlots } from './types';
+import { Member, Room, Booking, BookingRequest, AvailableSlots, MeetingMinutes, MinutesRequest, SpeechToText, SpeechToTextRequest } from './types';
 import { getUserInfo } from '@dootask/tools';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8089/api';
 
 // 基础API调用函数
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -198,6 +198,10 @@ export const bookingApi = {
   // 获取可用时间段
   getAvailableSlots: (roomId: number, date: string) =>
     apiCall<AvailableSlots>(`/bookings/available-slots?room_id=${roomId}&date=${date}`),
+  
+  // 获取预定的会议纪要
+  getMinutes: (bookingId: number) =>
+    apiCall<MeetingMinutes[]>(`/bookings/${bookingId}/minutes`),
 };
 
 // 导出相关API
@@ -251,4 +255,56 @@ export const userApi = {
         : undefined
     );
   },
+};
+
+// 会议纪要相关API
+export const minutesApi = {
+  // 获取所有会议纪要
+  getAll: (params?: { booking_id?: number; status?: string; created_by?: number }) => {
+    let url = '/minutes';
+    if (params) {
+      const searchParams = new URLSearchParams();
+      if (params.booking_id) searchParams.append('booking_id', String(params.booking_id));
+      if (params.status) searchParams.append('status', params.status);
+      if (params.created_by) searchParams.append('created_by', String(params.created_by));
+      url += '?' + searchParams.toString();
+    }
+    return apiCall<MeetingMinutes[]>(url);
+  },
+  
+  // 获取单个会议纪要
+  get: (id: number) => apiCall<MeetingMinutes>(`/minutes/${id}`),
+  
+  // 创建会议纪要
+  create: (minutes: MinutesRequest) =>
+    apiCall<MeetingMinutes>('/minutes', {
+      method: 'POST',
+      body: JSON.stringify(minutes),
+    }),
+  
+  // 更新会议纪要
+  update: (id: number, minutes: MinutesRequest) =>
+    apiCall<MeetingMinutes>(`/minutes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(minutes),
+    }),
+  
+  // 删除会议纪要
+  delete: (id: number) =>
+    apiCall<{ message: string }>(`/minutes/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// 语音转文字相关API
+export const speechApi = {
+  // 处理语音转文字
+  processSpeechToText: (request: SpeechToTextRequest) =>
+    apiCall<SpeechToText>('/speech/to-text', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }),
+  
+  // 获取语音转文字状态
+  getStatus: (id: number) => apiCall<SpeechToText>(`/speech/to-text/${id}`),
 }; 

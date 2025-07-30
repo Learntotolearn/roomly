@@ -60,6 +60,7 @@ func SetupRoutes() *gin.Engine {
 			bookings.POST("", handlers.CreateBooking)
 			bookings.PUT("/:id/cancel", handlers.CancelBooking)
 			bookings.GET("/available-slots", handlers.GetAvailableSlots)
+			bookings.GET("/:id/minutes", handlers.GetBookingMinutes)
 		}
 
 		// 导出相关路由
@@ -67,6 +68,23 @@ func SetupRoutes() *gin.Engine {
 		{
 			export.GET("/bookings", handlers.ExportBookings)
 			export.GET("/room-usage", handlers.ExportRoomUsage)
+		}
+
+		// 会议纪要相关路由
+		minutes := api.Group("/minutes")
+		{
+			minutes.GET("", handlers.GetMinutes)
+			minutes.GET("/:id", handlers.GetMinutesById)
+			minutes.POST("", handlers.CreateMinutes)
+			minutes.PUT("/:id", handlers.UpdateMinutes)
+			minutes.DELETE("/:id", handlers.DeleteMinutes)
+		}
+
+		// 语音转文字相关路由
+		speech := api.Group("/speech")
+		{
+			speech.POST("/to-text", handlers.ProcessSpeechToText)
+			speech.GET("/to-text/:id", handlers.GetSpeechToTextStatus)
 		}
 	}
 

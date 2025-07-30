@@ -11,7 +11,8 @@ import {
   Home,
   Menu,
   X,
-  Users
+  Users,
+  Mic
 } from 'lucide-react';
 import { closeApp } from '@dootask/tools';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -29,6 +30,8 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
     { href: '/', label: '首页', icon: Home },
     { href: '/booking', label: '预定会议室', icon: CalendarDays },
     { href: '/my-bookings', label: '我的预定', icon: FileText },
+    { href: '/minutes', label: '会议纪要', icon: FileText },
+    { href: '/speech-to-text', label: '语音转文字', icon: Mic },
     ...(isAdmin ? [
       { href: '/admin/members', label: '会员管理', icon: Users },
       { href: '/admin/rooms', label: '会议室管理', icon: Settings },

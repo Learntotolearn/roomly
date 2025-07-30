@@ -22,6 +22,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }
 
   if (!currentMember) {
+    if (process.env.NODE_ENV === 'development') {
+      // 开发环境下直接渲染内容，方便调试
+      return <>{children}</>;
+    }
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

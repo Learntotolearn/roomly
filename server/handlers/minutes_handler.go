@@ -1,14 +1,24 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/base64"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"roomly/database"
 	"roomly/models"
 
+	"os/exec"
+
+	whisper "github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
 	"github.com/gin-gonic/gin"
+	"github.com/go-audio/wav"
 )
 
 // 获取会议纪要列表
@@ -169,6 +179,121 @@ func DeleteMinutes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
 }
 
+// 语音识别：go-whisper 实现
+func processAudioWithGo(audioFile string) (string, error) {
+	modelPath := "server/models/ggml-small.bin"
+	wavFile := audioFile + ".wav"
+	cmd := exec.Command("ffmpeg", "-i", audioFile, "-ar", "16000", "-ac", "1", "-f", "wav", "-y", wavFile)
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("ffmpeg 转换失败: %v, %s", err, errb.String())
+	}
+	defer os.Remove(wavFile)
+
+	// 1. 解码 wav 文件为 float32 slice
+	fh, err := os.Open(wavFile)
+	if err != nil {
+		return "", fmt.Errorf("打开 wav 文件失败: %v", err)
+	}
+	defer fh.Close()
+	dec := wav.NewDecoder(fh)
+	buf, err := dec.FullPCMBuffer()
+	if err != nil {
+		return "", fmt.Errorf("解码 wav 失败: %v", err)
+	}
+	data := buf.AsFloat32Buffer().Data
+
+	// 2. 加载模型
+	model, err := whisper.New(modelPath)
+	if err != nil {
+		return "", fmt.Errorf("加载Whisper模型失败: %v", err)
+	}
+	defer model.Close()
+
+	ctx, err := model.NewContext()
+	if err != nil {
+		return "", fmt.Errorf("创建Whisper上下文失败: %v", err)
+	}
+
+	// 3. 推理
+	if err := ctx.Process(data, nil, nil, nil); err != nil {
+		return "", fmt.Errorf("Whisper识别失败: %v", err)
+	}
+
+	// 4. 获取识别结果
+	var result string
+	for {
+		seg, err := ctx.NextSegment()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("获取识别结果失败: %v", err)
+		}
+		result += seg.Text
+	}
+	return result, nil
+}
+
+// 更新语音转文字状态的辅助函数
+func updateSpeechToTextStatus(id uint, status string, text string) {
+	var stt models.SpeechToText
+	if err := database.DB.First(&stt, id).Error; err != nil {
+		return
+	}
+
+	stt.Status = status
+	stt.Text = text
+	stt.UpdatedAt = time.Now()
+
+	database.DB.Save(&stt)
+}
+
+// 将base64数据写入文件的辅助函数
+func writeBase64ToFile(base64Data string, filePath string) error {
+	// 处理Data URL前缀
+	if strings.HasPrefix(base64Data, "data:") {
+		// 移除Data URL前缀，只保留base64数据部分
+		parts := strings.Split(base64Data, ",")
+		if len(parts) != 2 {
+			return fmt.Errorf("无效的Data URL格式")
+		}
+		base64Data = parts[1]
+	}
+
+	// 解码base64数据
+	decodedData, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return fmt.Errorf("base64解码失败: %v", err)
+	}
+
+	// 写入文件
+	if err := os.WriteFile(filePath, decodedData, 0644); err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+	return nil
+}
+
+// 复制文件的辅助函数
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
+
 // 语音转文字处理
 func ProcessSpeechToText(c *gin.Context) {
 	var request models.SpeechToTextRequest
@@ -196,18 +321,51 @@ func ProcessSpeechToText(c *gin.Context) {
 		return
 	}
 
-	// 这里应该调用实际的语音识别服务
-	// 为了演示，我们模拟一个异步处理过程
-	go func(id uint) {
-		time.Sleep(5 * time.Second)
-		var stt models.SpeechToText
-		if err := database.DB.First(&stt, id).Error; err == nil {
-			stt.Status = "completed"
-			stt.Text = "这是从语音识别得到的文本内容示例。实际应用中，这里应该是调用语音识别API的结果。"
-			stt.UpdatedAt = time.Now()
-			database.DB.Save(&stt)
+	// 处理base64编码的音频数据
+	go func(id uint, audioData string) {
+		// 创建临时目录
+		tempDir := "./tmp/audio"
+		if err := os.MkdirAll(tempDir, 0755); err != nil {
+			updateSpeechToTextStatus(id, "failed", fmt.Sprintf("创建临时目录失败: %v", err))
+			return
 		}
-	}(speechToText.ID)
+
+		// 生成临时文件路径
+		timestamp := time.Now().UnixNano()
+		tempFile := fmt.Sprintf("%s/audio_%d.webm", tempDir, timestamp)
+
+		// 调试信息
+		fmt.Printf("开始处理语音转文字，ID: %d\n", id)
+		fmt.Printf("音频数据长度: %d\n", len(audioData))
+		fmt.Printf("临时文件路径: %s\n", tempFile)
+
+		// 将base64数据写入临时文件
+		if err := writeBase64ToFile(audioData, tempFile); err != nil {
+			fmt.Printf("保存音频文件失败: %v\n", err)
+			updateSpeechToTextStatus(id, "failed", fmt.Sprintf("保存音频文件失败: %v", err))
+			return
+		}
+
+		// 检查文件是否成功创建
+		if fileInfo, err := os.Stat(tempFile); err == nil {
+			fmt.Printf("音频文件保存成功，大小: %d bytes\n", fileInfo.Size())
+		}
+
+		// 使用纯Go处理音频文件
+		text, processErr := processAudioWithGo(tempFile)
+
+		// 清理临时文件
+		os.Remove(tempFile)
+
+		// 更新状态
+		if processErr != nil {
+			fmt.Printf("语音识别失败: %v\n", processErr)
+			updateSpeechToTextStatus(id, "failed", fmt.Sprintf("语音识别失败: %v", processErr))
+		} else {
+			fmt.Printf("语音识别成功，结果: %s\n", text)
+			updateSpeechToTextStatus(id, "completed", text)
+		}
+	}(speechToText.ID, request.AudioFile)
 
 	c.JSON(http.StatusAccepted, gin.H{
 		"data":    speechToText,

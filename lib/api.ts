@@ -299,12 +299,17 @@ export const minutesApi = {
 // 语音转文字相关API
 export const speechApi = {
   // 处理语音转文字
-  processSpeechToText: (request: SpeechToTextRequest) =>
-    apiCall<SpeechToText>('/speech/to-text', {
+  processSpeechToText: async (request: SpeechToTextRequest) => {
+    const response = await apiCall<{ data: SpeechToText; message: string }>('/speech/to-text', {
       method: 'POST',
       body: JSON.stringify(request),
-    }),
+    });
+    return response.data;
+  },
   
   // 获取语音转文字状态
-  getStatus: (id: number) => apiCall<SpeechToText>(`/speech/to-text/${id}`),
+  getStatus: async (id: number) => {
+    const response = await apiCall<{ data: SpeechToText }>(`/speech/to-text/${id}`);
+    return response.data;
+  },
 }; 

@@ -6,8 +6,10 @@ toolchain go1.24.3
 
 require (
 	github.com/dootask/tools/server/go v0.0.0-20250717040353-7e9cc89be08c
+	github.com/ggerganov/whisper.cpp/bindings/go v0.0.0-20250730185458-f7502dca8728
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
+	github.com/go-audio/wav v1.1.0
 	github.com/tealeg/xlsx v1.0.5
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12
@@ -19,6 +21,8 @@ require (
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
+	github.com/go-audio/audio v1.0.0 // indirect
+	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.26.0 // indirect

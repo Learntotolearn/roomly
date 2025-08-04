@@ -21,7 +21,8 @@ import {
   MapPin,
   User
 } from 'lucide-react';
-import AudioRecorderV2 from '@/components/ui/audio-recorder-v2';
+import AudioRecorderSimple from '@/components/ui/audio-recorder-simple';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 
 export default function SpeechToTextPage() {
@@ -30,6 +31,7 @@ export default function SpeechToTextPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentSpeechId, setCurrentSpeechId] = useState<number | null>(null);
+  const [streamingText, setStreamingText] = useState('');
 
   // 获取所有预定记录
   const { data: bookings } = useQuery({
@@ -63,7 +65,8 @@ export default function SpeechToTextPage() {
   useEffect(() => {
     if (speechStatus?.status === 'completed' || speechStatus?.status === 'failed') {
       setIsProcessing(false);
-      setCurrentSpeechId(null);
+      // 不要立即重置currentSpeechId，让结果保持显示
+      // setCurrentSpeechId(null);
       // 刷新会议纪要列表
       queryClient.invalidateQueries({ queryKey: ['minutes'] });
     }
@@ -215,10 +218,22 @@ export default function SpeechToTextPage() {
           </Card>
 
           {/* 音频录制 */}
-                  <AudioRecorderV2
-          onRecordingComplete={handleRecordingComplete}
-          isProcessing={isProcessing}
-        />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mic className="h-5 w-5" />
+                录音功能
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AudioRecorderSimple
+                onRecordingComplete={handleRecordingComplete}
+                onError={(error) => {
+                  console.error('录音错误:', error);
+                }}
+              />
+            </CardContent>
+          </Card>
 
           {/* 处理按钮 */}
           <Card>

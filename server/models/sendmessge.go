@@ -50,7 +50,7 @@ func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
 }
 
 // SendMessageWithToken 用指定 token 给多个用户发送消息，msgType 支持 'remind'（会议提醒）、'cancel'（会议取消），如有 msgContent 则优先用自定义内容
-func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, msgContent ...string) {
+func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, reason string, msgContent ...string) {
 	client := NewDooTaskClient(token)
 	user, err := client.Client.GetUserInfo()
 	var nickname string
@@ -85,12 +85,17 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 
 > 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, nickname)
 		default:
+			// 添加申请理由到会议提醒消息中
+			reasonSection := ""
+			if reason != "" {
+				reasonSection = fmt.Sprintf("\n- **申请理由**：%s", reason)
+			}
 			msg = fmt.Sprintf(`## 📢  会议提醒
 ### **您有新的会议安排，请按时参加！**
 
 - **会议室**：%s
 - **会议时间**：%s
-- **会议发起人**：%s`, roomName, meetingTime, nickname)
+- **会议发起人**：%s%s`, roomName, meetingTime, nickname, reasonSection)
 		}
 	}
 	// 对 userIDs 去重
@@ -135,13 +140,18 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 - **会议发起人**：%s
 `, roomName, meetingTime, nickname)
 		default:
+			// 添加申请理由到管理员通知消息中
+			reasonSection := ""
+			if reason != "" {
+				reasonSection = fmt.Sprintf("\n- **申请理由**：%s", reason)
+			}
 			adminMsg = fmt.Sprintf(`## 📢  会议室新预定提醒
 ### **会议室有新预定，请关注。**
 
 - **会议室**：%s
 - **时间**：%s
-- **会议发起人**：%s
-`, roomName, meetingTime, nickname)
+- **会议发起人**：%s%s
+`, roomName, meetingTime, nickname, reasonSection)
 		}
 		err := adminClient.SendBotMessage(uint(adminID), adminMsg)
 		if err != nil {

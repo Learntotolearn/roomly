@@ -267,7 +267,7 @@ func CreateBooking(c *gin.Context) {
 		roomName = room.Name
 	}
 	// 异步发送会议通知
-	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", "")
+	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", request.Reason, "")
 
 	c.JSON(http.StatusCreated, booking)
 }
@@ -326,7 +326,7 @@ func CancelBooking(c *gin.Context) {
 	}
 	// 发送取消通知（消息内容由 sendmessge.go 内部组装）
 	if len(userIDs) > 0 {
-		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", "")
+		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", booking.Reason, "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})

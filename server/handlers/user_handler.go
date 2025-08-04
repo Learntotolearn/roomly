@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 会议通知推送接口，支持参数：userid[]、date、time_slots[]、room_name
+// 会议通知推送接口，支持参数：userid[]、date、time_slots[]、room_name、reason
 // 由预约流程或相关业务自动调用
 func SendMessageToUsers(c *gin.Context) {
 	// 兼容 userid[] 和 userid 两种参数
@@ -26,6 +26,7 @@ func SendMessageToUsers(c *gin.Context) {
 	date := c.Query("date")
 	timeSlots := c.QueryArray("time_slots[]")
 	roomName := c.Query("room_name")
+	reason := c.Query("reason") // 新增申请理由参数
 	if len(userIDs) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
 		return
@@ -42,6 +43,6 @@ func SendMessageToUsers(c *gin.Context) {
 		}
 	}
 	// 异步发送会议通知
-	models.SendMessageWithToken(userIDs, []int{}, token, date, timeSlots, roomName, "remind", "")
+	models.SendMessageWithToken(userIDs, []int{}, token, date, timeSlots, roomName, "remind", reason, "")
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

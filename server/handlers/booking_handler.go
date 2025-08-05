@@ -266,8 +266,14 @@ func CreateBooking(c *gin.Context) {
 	if err := database.DB.First(&room, request.RoomID).Error; err == nil {
 		roomName = room.Name
 	}
+	// 获取所有参会用户昵称
+	var attendeeNames []string
+	for _, user := range request.BookingUsers {
+		attendeeNames = append(attendeeNames, user.Nickname)
+	}
+	attendees := strings.Join(attendeeNames, "、")
 	// 异步发送会议通知
-	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", request.Reason, "")
+	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", request.Reason, attendees, "")
 
 	c.JSON(http.StatusCreated, booking)
 }

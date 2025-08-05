@@ -34,7 +34,7 @@ type DooTaskClient struct {
 }
 
 func NewDooTaskClient(token string) DooTaskClient {
-	return DooTaskClient{Client: dootask.NewClient(token)}
+	return DooTaskClient{Client: dootask.NewClient(token, dootask.WithServer("http://127.0.0.1"))}
 }
 
 func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
@@ -50,7 +50,7 @@ func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
 }
 
 // SendMessageWithToken 用指定 token 给多个用户发送消息，msgType 支持 'remind'（会议提醒）、'cancel'（会议取消），如有 msgContent 则优先用自定义内容
-func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, reason string, msgContent ...string) {
+func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, reason string, attendees string, msgContent ...string) {
 	client := NewDooTaskClient(token)
 	user, err := client.Client.GetUserInfo()
 	var nickname string
@@ -81,9 +81,10 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 
 - **会议室**：%s
 - **原定时间**：%s
+- **参会人员**：%s
 - **会议发起人**：%s
 
-> 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, nickname)
+> 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, attendees, nickname)
 		default:
 			// 添加申请理由到会议提醒消息中
 			reasonSection := ""
@@ -95,7 +96,8 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 
 - **会议室**：%s
 - **会议时间**：%s
-- **会议发起人**：%s%s`, roomName, meetingTime, nickname, reasonSection)
+- **参会人员**：%s
+- **会议发起人**：%s%s`, roomName, meetingTime, attendees, nickname, reasonSection)
 		}
 	}
 	// 对 userIDs 去重
@@ -137,7 +139,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 
 - **会议室**：%s
 - **原定时间**：%s
-- **会议发起人**：%s
+- **会议室预定人**：%s
 `, roomName, meetingTime, nickname)
 		default:
 			// 添加申请理由到管理员通知消息中
@@ -150,7 +152,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 
 - **会议室**：%s
 - **时间**：%s
-- **会议发起人**：%s%s
+- **会议室预定人**：%s%s
 `, roomName, meetingTime, nickname, reasonSection)
 		}
 		err := adminClient.SendBotMessage(uint(adminID), adminMsg)

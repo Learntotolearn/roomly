@@ -305,6 +305,12 @@ func CancelBooking(c *gin.Context) {
 	for _, user := range booking.BookingUsers {
 		userIDs = append(userIDs, int(user.Userid))
 	}
+	// 获取所有参会人员昵称
+	var attendeeNames []string
+	for _, user := range booking.BookingUsers {
+		attendeeNames = append(attendeeNames, user.Nickname)
+	}
+	attendees := strings.Join(attendeeNames, "、")
 	// 查找所有会议室管理员 dootask_id
 	var adminIDs []int
 	var admins []models.Member
@@ -332,7 +338,7 @@ func CancelBooking(c *gin.Context) {
 	}
 	// 发送取消通知（消息内容由 sendmessge.go 内部组装）
 	if len(userIDs) > 0 {
-		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", booking.Reason, "")
+		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", booking.Reason, attendees)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})

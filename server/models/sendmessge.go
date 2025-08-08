@@ -71,34 +71,41 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 	}
 	// 通知所有参会人员
 	var msg string
-	if len(msgContent) > 0 && msgContent[0] != "" {
-		msg = msgContent[0]
-	} else {
-		switch msgType {
-		case "cancel":
-			msg = fmt.Sprintf(`## ❌  会议取消通知
+	switch msgType {
+	case "cancel":
+		// 获取取消理由
+		cancelReason := ""
+		if len(msgContent) > 0 {
+			cancelReason = msgContent[0]
+		}
+
+		cancelReasonSection := ""
+		if cancelReason != "" {
+			cancelReasonSection = fmt.Sprintf("\n- **会议取消理由**：%s", cancelReason)
+		}
+
+		msg = fmt.Sprintf(`## ❌  会议取消通知
 ### **您参与的会议已被取消**
 
 - **会议室**：%s
 - **原定时间**：%s
 - **参会人员**：%s
-- **会议发起人**：%s
+- **会议发起人**：%s%s
 
-> 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, attendees, nickname)
-		default:
-			// 添加申请理由到会议提醒消息中
-			reasonSection := ""
-			if reason != "" {
-				reasonSection = fmt.Sprintf("\n- **申请理由**：%s", reason)
-			}
-			msg = fmt.Sprintf(`## 📢  会议提醒
+> 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, attendees, nickname, cancelReasonSection)
+	default:
+		// 添加预定理由到会议提醒消息中
+		reasonSection := ""
+		if reason != "" {
+			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
+		}
+		msg = fmt.Sprintf(`## 📢  会议提醒
 ### **您有新的会议安排，请按时参加！**
 
 - **会议室**：%s
 - **会议时间**：%s
 - **参会人员**：%s
 - **会议发起人**：%s%s`, roomName, meetingTime, attendees, nickname, reasonSection)
-		}
 	}
 	// 对 userIDs 去重
 	userIDMap := make(map[int]struct{})
@@ -134,18 +141,28 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 		var adminMsg string
 		switch msgType {
 		case "cancel":
+			// 获取取消理由
+			cancelReason := ""
+			if len(msgContent) > 0 {
+				cancelReason = msgContent[0]
+			}
+
+			cancelReasonSection := ""
+			if cancelReason != "" {
+				cancelReasonSection = fmt.Sprintf("\n- **会议取消理由**：%s", cancelReason)
+			}
+
 			adminMsg = fmt.Sprintf(`## ❌  会议室预定取消提醒
 ### **有会议室预定被取消，请关注。**
 
 - **会议室**：%s
 - **原定时间**：%s
-- **会议室预定人**：%s
-`, roomName, meetingTime, nickname)
+- **会议室预定人**：%s%s`, roomName, meetingTime, nickname, cancelReasonSection)
 		default:
-			// 添加申请理由到管理员通知消息中
+			// 添加预定理由到管理员通知消息中
 			reasonSection := ""
 			if reason != "" {
-				reasonSection = fmt.Sprintf("\n- **申请理由**：%s", reason)
+				reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
 			}
 			adminMsg = fmt.Sprintf(`## 📢  会议室新预定提醒
 ### **会议室有新预定，请关注。**

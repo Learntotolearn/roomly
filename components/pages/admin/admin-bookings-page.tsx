@@ -48,6 +48,7 @@ import { useAppContext } from '@/lib/context/app-context';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Calendar } from '@/components/ui/calendar';
 import { zhCN } from 'date-fns/locale';
+import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
 
 export default function AdminBookingsPage() {
   const { Confirm } = useAppContext();
@@ -58,6 +59,9 @@ export default function AdminBookingsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detail, setDetail] = useState<Booking | null>(null);
+  // 取消预定弹窗状态
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelBooking, setCancelBooking] = useState<Booking | null>(null);
   // 分页相关
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -72,32 +76,40 @@ export default function AdminBookingsPage() {
   }, [searchTerm, statusFilter, sortBy, sortOrder]);
 
   // 获取所有预定记录
-  const { data: bookingsRes, isLoading, error, refetch } = useQuery<{ data: Booking[]; total: number }>({
+  const { data: bookingsRes, isLoading, error } = useQuery<{ data: Booking[]; total: number }>({
     queryKey: ['bookings', page, pageSize, startDate, endDate, statusFilter, sortBy, sortOrder],
     queryFn: () => bookingApi.getAll({ page, page_size: pageSize, start_date: startDate, end_date: endDate, status: statusFilter !== 'all' ? statusFilter : undefined, sort_by: sortBy, sort_order: sortOrder }),
   });
   const bookings: Booking[] = useMemo(() => bookingsRes?.data || [], [bookingsRes]);
   const total: number = bookingsRes?.total || 0;
 
-  // 取消预定
+  // 取消预定的mutation
   const cancelBookingMutation = useMutation({
-    mutationFn: bookingApi.cancel,
+    mutationFn: ({ bookingId, cancelReason }: { bookingId: number; cancelReason: string }) => 
+      bookingApi.cancel(bookingId, cancelReason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
-      refetch(); // 新增：主动刷新当前页
+      queryClient.invalidateQueries({ queryKey: ['available-slots'] });
+      setCancelDialogOpen(false);
+      setCancelBooking(null);
+    },
+    onError: (error: Error) => {
+      console.error('取消预定失败:', error);
+      // 可以在这里添加错误提示，比如使用 toast 通知
     },
   });
 
   // 处理取消预定
   const handleCancelBooking = (booking: Booking) => {
-    Confirm({
-      title: '取消预定',
-      message: `确定要取消 ${booking.member?.name || ''} 在 ${booking.room?.name || ''} 的预定吗？`,
-      onConfirm: () => {
-        cancelBookingMutation.mutate(booking.id);
-      },
-    });
+    setCancelBooking(booking);
+    setCancelDialogOpen(true);
+  };
+
+  // 处理确认取消
+  const handleConfirmCancel = (cancelReason: string) => {
+    if (cancelBooking) {
+      cancelBookingMutation.mutate({ bookingId: cancelBooking.id, cancelReason });
+    }
   };
 
   // 处理导出
@@ -143,6 +155,19 @@ export default function AdminBookingsPage() {
       today: bookings.filter((b: Booking) => b.date === today && b.status === 'active').length,
     };
   }, [bookings, total]);
+
+  // 过滤和搜索
+  const filteredBookings = useMemo(() => {
+    if (!bookings) return [];
+    return bookings.filter((booking: Booking) => {
+      const matchesSearch = searchTerm === '' || 
+        booking.room?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.member?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.cancel_reason?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    });
+  }, [bookings, searchTerm]);
 
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -375,7 +400,7 @@ export default function AdminBookingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <FileText className="w-5 h-5 mr-2" />
-            预定列表 ({bookings.length})
+            预定列表 ({filteredBookings.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -388,23 +413,24 @@ export default function AdminBookingsPage() {
                 <TableHead>日期</TableHead>
                 <TableHead>时间</TableHead>
                 <TableHead>时长</TableHead>
-                <TableHead>理由</TableHead>
+                <TableHead>预定理由</TableHead>
+                <TableHead>取消理由</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>创建时间</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.length === 0 && (
+              {filteredBookings.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center">
+                  <TableCell colSpan={11} className="text-center">
                     <div className="flex items-center justify-center">
                       <p className="text-gray-500 py-4">暂无数据</p>
                     </div>
                   </TableCell>
                 </TableRow>
               )}
-              {bookings.map((booking: Booking) => (
+              {filteredBookings.map((booking: Booking) => (
                 <TableRow key={booking.id}>
                   <TableCell>{booking.id}</TableCell>
                   <TableCell>
@@ -453,6 +479,24 @@ export default function AdminBookingsPage() {
                       </TooltipProvider>
                     ) : (
                       <span>{booking.reason || ''}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate">
+                    {booking.cancel_reason && booking.cancel_reason.length > 8 ? (
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-pointer">
+                              {booking.cancel_reason.slice(0, 8) + '...'}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {booking.cancel_reason}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span>{booking.cancel_reason || ''}</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -575,8 +619,13 @@ export default function AdminBookingsPage() {
                   <strong>参会人员:</strong> {detail.booking_users?.length > 0 ? detail.booking_users.map((user) => user.nickname).join(', ') : '-'}
                 </div>
                 <div>
-                  <strong>申请理由：</strong>{detail.reason || ''}
+                  <strong>预定理由：</strong>{detail.reason || ''}
                 </div>
+                {detail.cancel_reason && (
+                  <div>
+                    <strong>取消理由：</strong>{detail.cancel_reason}
+                  </div>
+                )}
                 <div>
                   <strong>创建时间：</strong>{format(parseISO(detail.created_at || ''), 'yyyy-MM-dd HH:mm')}
                 </div>
@@ -588,6 +637,16 @@ export default function AdminBookingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 取消预定弹窗 */}
+      <CancelBookingDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        onConfirm={handleConfirmCancel}
+        loading={cancelBookingMutation.isPending}
+        title="取消预定"
+        message={cancelBooking ? `确定要取消 ${cancelBooking.member?.name || ''} 在 ${cancelBooking.room?.name || ''} 的预定吗？` : "确定要取消这个预定吗？"}
+      />
     </div>
   );
 } 

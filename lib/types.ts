@@ -27,6 +27,7 @@ export interface Booking {
   start_time: string;
   end_time: string;
   reason: string;
+  cancel_reason?: string; // 取消理由
   status: 'active' | 'cancelled' | 'expired';
   created_at: string;
   updated_at: string;

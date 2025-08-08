@@ -26,7 +26,7 @@ func SendMessageToUsers(c *gin.Context) {
 	date := c.Query("date")
 	timeSlots := c.QueryArray("time_slots[]")
 	roomName := c.Query("room_name")
-	reason := c.Query("reason") // 新增申请理由参数
+	reason := c.Query("reason") // 新增预定理由参数
 	if len(userIDs) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
 		return

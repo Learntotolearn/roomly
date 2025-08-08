@@ -58,7 +58,7 @@ func ExportBookings(c *gin.Context) {
 
 	// 创建表头
 	headerRow := sheet.AddRow()
-	headers := []string{"预订ID", "会议室名称", "会员姓名", "预订日期", "开始时间", "结束时间", "参会人员", "申请理由", "状态", "创建时间"}
+	headers := []string{"预订ID", "会议室名称", "会员姓名", "预订日期", "开始时间", "结束时间", "参会人员", "预定理由", "取消理由", "状态", "创建时间"}
 	for _, header := range headers {
 		cell := headerRow.AddCell()
 		cell.Value = header
@@ -94,8 +94,11 @@ func ExportBookings(c *gin.Context) {
 		}
 		row.AddCell().SetString(strings.Join(userNames, ", "))
 
-		// 申请理由
+		// 预定理由
 		row.AddCell().SetString(booking.Reason)
+
+		// 取消理由
+		row.AddCell().SetString(booking.CancelReason)
 
 		// 状态
 		statusText := "有效"
@@ -109,15 +112,17 @@ func ExportBookings(c *gin.Context) {
 	}
 
 	// 设置列宽
-	sheet.SetColWidth(0, 0, 8)  // 预订ID
-	sheet.SetColWidth(1, 1, 15) // 会议室名称
-	sheet.SetColWidth(2, 2, 12) // 会员姓名
-	sheet.SetColWidth(3, 3, 12) // 预订日期
-	sheet.SetColWidth(4, 4, 10) // 开始时间
-	sheet.SetColWidth(5, 5, 10) // 结束时间
-	sheet.SetColWidth(6, 6, 25) // 申请理由
-	sheet.SetColWidth(7, 7, 8)  // 状态
-	sheet.SetColWidth(8, 8, 20) // 创建时间
+	sheet.SetColWidth(0, 0, 8)    // 预订ID
+	sheet.SetColWidth(1, 1, 15)   // 会议室名称
+	sheet.SetColWidth(2, 2, 12)   // 会员姓名
+	sheet.SetColWidth(3, 3, 12)   // 预订日期
+	sheet.SetColWidth(4, 4, 10)   // 开始时间
+	sheet.SetColWidth(5, 5, 10)   // 结束时间
+	sheet.SetColWidth(6, 6, 25)   // 参会人员
+	sheet.SetColWidth(7, 7, 25)   // 预定理由
+	sheet.SetColWidth(8, 8, 25)   // 取消理由
+	sheet.SetColWidth(9, 9, 8)    // 状态
+	sheet.SetColWidth(10, 10, 20) // 创建时间
 
 	// 生成文件名
 	filename := fmt.Sprintf("预订记录_%s.xlsx", time.Now().Format("20060102_150405"))

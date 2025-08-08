@@ -6,13 +6,13 @@ import (
 
 // 会员模型
 type Member struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"not null" json:"name"`
-	DootaskID uint      `gorm:"not null" json:"dootask_id"`
-	IsAdmin   bool      `gorm:"default:false" json:"is_admin"`
-	IsRoomAdmin bool    `gorm:"default:false" json:"is_room_admin"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Name        string    `gorm:"not null" json:"name"`
+	DootaskID   uint      `gorm:"not null" json:"dootask_id"`
+	IsAdmin     bool      `gorm:"default:false" json:"is_admin"`
+	IsRoomAdmin bool      `gorm:"default:false" json:"is_room_admin"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // 会议室模型
@@ -28,16 +28,17 @@ type Room struct {
 
 // 预定记录模型
 type Booking struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	RoomID    uint      `gorm:"not null" json:"room_id"`
-	MemberID  uint      `gorm:"not null" json:"member_id"`
-	Date      string    `gorm:"not null" json:"date"`       // 格式: YYYY-MM-DD
-	StartTime string    `gorm:"not null" json:"start_time"` // 格式: HH:MM
-	EndTime   string    `gorm:"not null" json:"end_time"`   // 格式: HH:MM
-	Reason    string    `gorm:"not null" json:"reason"`
-	Status    string    `gorm:"default:active" json:"status"` // active, cancelled
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	RoomID       uint      `gorm:"not null" json:"room_id"`
+	MemberID     uint      `gorm:"not null" json:"member_id"`
+	Date         string    `gorm:"not null" json:"date"`       // 格式: YYYY-MM-DD
+	StartTime    string    `gorm:"not null" json:"start_time"` // 格式: HH:MM
+	EndTime      string    `gorm:"not null" json:"end_time"`   // 格式: HH:MM
+	Reason       string    `gorm:"not null" json:"reason"`
+	CancelReason string    `json:"cancel_reason"`                // 取消理由
+	Status       string    `gorm:"default:active" json:"status"` // active, cancelled
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 
 	// 关联关系
 	Room         Room          `gorm:"foreignKey:RoomID" json:"room"`

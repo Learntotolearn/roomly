@@ -417,11 +417,11 @@ export default function BookingPage() {
           </Card>
         )}
 
-        {/* 申请理由 */}
+        {/* 预定理由 */}
         {selectedTimeSlots.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>申请理由</CardTitle>
+              <CardTitle>预定理由</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea

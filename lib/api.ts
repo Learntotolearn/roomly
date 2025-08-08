@@ -179,7 +179,7 @@ export const bookingApi = {
   },
   
   // 取消预订
-  cancel: async (id: number) => {
+  cancel: async (id: number, cancelReason: string) => {
     let token = '';
     try {
       const userInfo = await getUserInfo();
@@ -189,6 +189,7 @@ export const bookingApi = {
     }
     return apiCall<{ message: string }>(`/bookings/${id}/cancel`, {
       method: 'PUT',
+      body: JSON.stringify({ cancel_reason: cancelReason }),
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },

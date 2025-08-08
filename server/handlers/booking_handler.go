@@ -282,6 +282,21 @@ func CreateBooking(c *gin.Context) {
 func CancelBooking(c *gin.Context) {
 	id := c.Param("id")
 
+	// 解析请求体，获取取消理由
+	var request struct {
+		CancelReason string `json:"cancel_reason"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// 验证取消理由必填
+	if request.CancelReason == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "取消理由不能为空"})
+		return
+	}
+
 	var booking models.Booking
 	if err := database.DB.Preload("BookingUsers").Preload("Room").First(&booking, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
@@ -295,6 +310,7 @@ func CancelBooking(c *gin.Context) {
 	}
 
 	booking.Status = "cancelled"
+	booking.CancelReason = request.CancelReason
 	if err := database.DB.Save(&booking).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel booking"})
 		return
@@ -332,7 +348,14 @@ func CancelBooking(c *gin.Context) {
 	}
 	// 发送取消通知（消息内容由 sendmessge.go 内部组装）
 	if len(userIDs) > 0 {
-		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", booking.Reason, "")
+		// 获取所有参会用户昵称
+		var attendeeNames []string
+		for _, user := range booking.BookingUsers {
+			attendeeNames = append(attendeeNames, user.Nickname)
+		}
+		attendees := strings.Join(attendeeNames, "、")
+
+		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", booking.Reason, attendees, request.CancelReason)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})

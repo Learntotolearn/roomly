@@ -10,10 +10,8 @@ import {
   FileText, 
   Home,
   Menu,
-  X,
   Users
 } from 'lucide-react';
-import { closeApp } from '@dootask/tools';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 interface NavigationProps {

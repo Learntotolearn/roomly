@@ -41,28 +41,10 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
       <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
         <div className="flex items-center gap-2">
           <div className="flex items-center sm:hidden">
-            <Button variant="ghost" size="sm" onClick={() => closeApp()}>
-              <X size={20} />
-            </Button>
+            {/* 删除关闭按钮 */}
           </div>
           
-          <Link href="/" className="flex items-center">
-            <span className="self-center text-xl font-semibold whitespace-nowrap">
-              会议室预定系统
-            </span>
-          </Link>
-        </div>
-        
-        <div className="flex items-center lg:order-2">
-          <div className="flex items-center gap-2 mr-4">
-            <span className="text-sm text-gray-700 dark:text-white">欢迎，{currentMember}</span>
-            {isAdmin && (
-              <Badge variant="secondary" className="text-xs">
-                管理员
-              </Badge>
-            )}
-          </div>
-          
+          {/* 移动端菜单按钮 - 移到最左侧 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -98,10 +80,33 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
               })}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* 系统标题 - 只在电脑端显示 */}
+          <Link href="/" className="hidden lg:flex items-center">
+            <span className="self-center text-xl font-semibold whitespace-nowrap">
+              会议室预定系统
+            </span>
+          </Link>
+        </div>
+        
+        <div className="flex items-center lg:order-2">
+          <div className="flex items-center gap-1 mr-24 lg:mr-5">
+            <span className="text-sm text-gray-700 dark:text-white">欢迎，{currentMember}</span>
+            {isAdmin && (
+              <Badge variant="secondary" className="text-xs">
+                管理员
+              </Badge>
+            )}
+          </div>
+          
+          {/* 胶囊预留位置 - 桌面端显示 */}
+          <div className="hidden lg:flex w-12 h-8 rounded-full flex items-center justify-center mr-4">
+            {/* 胶囊内容预留 */}
+          </div>
         </div>
 
         <div className="justify-between items-center w-full lg:w-auto lg:order-1 hidden lg:flex">
-          <ul className="flex flex-col mt-4 font-medium lg:flex-row lg:space-x-8 lg:mt-0">
+          <ul className="flex flex-col mt-4 font-medium lg:flex-row lg:space-x-5 lg:mt-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;

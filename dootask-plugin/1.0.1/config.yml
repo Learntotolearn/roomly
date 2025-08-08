@@ -1,0 +1,17 @@
+menu_items:
+  - location: application
+    label:
+      en: Roomly
+      zh: 会议室预订
+    url: "apps/roomly?theme={system_theme}"
+    url_type: iframe
+
+    capsule:                         
+      visible: true                   
+      top: 13                         
+      right: 10                       
+      more_menus:                     
+        - label: 菜单1
+          value: 1
+
+    background: "#f9fafb|#18181b"

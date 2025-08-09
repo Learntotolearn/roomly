@@ -8,7 +8,7 @@ menu_items:
 
     capsule:                         
       visible: true                   
-      top: 13                         
+      top: 14                         
       right: 10                       
       more_menus:                     
         - label: 菜单1

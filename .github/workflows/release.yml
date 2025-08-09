@@ -59,7 +59,7 @@ jobs:
 
       - name: Publish to DooTask App Store
         id: publish
-        uses: dootask/appstore-action@v1
+        uses: dootask/appstore-action@v2
         with:
           username: ${{ secrets.DOOTASK_USERNAME }}
           password: ${{ secrets.DOOTASK_PASSWORD }}

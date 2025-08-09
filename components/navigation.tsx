@@ -35,11 +35,10 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
   ];
 
   return (
-    <nav className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 px-4 lg:px-6 py-3 lg:py-4 sticky top-0 z-50">
-      <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
-        <div className="flex items-center gap-2">
+    <nav className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 px-2 lg:px-4 py-3 lg:py-4 sticky top-0 z-50">
+      <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl pr-24 lg:pr-17">
+        <div className="flex items-center gap-2 pr-2 lg:pr-2 -ml-2 lg:-ml-2">
           <div className="flex items-center sm:hidden">
-            {/* 删除关闭按钮 */}
           </div>
           
           {/* 移动端菜单按钮 - 移到最左侧 */}
@@ -49,8 +48,10 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
                 variant="ghost"
                 size="icon"
                 className="lg:hidden"
+                aria-label="打开菜单"
               >
-                <Menu />
+                {/* 放大菜单图标 */}
+                <Menu className="transform scale-130" strokeWidth={2.4} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="mt-3.5">
@@ -81,15 +82,21 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
 
           {/* 系统标题 - 只在电脑端显示 */}
           <Link href="/" className="hidden lg:flex items-center">
-            <span className="self-center text-xl font-semibold whitespace-nowrap">
+            <span className="self-center text-xl font-semibold whitespace-nowrap pl-2">
               会议室预定系统
             </span>
           </Link>
         </div>
         
         <div className="flex items-center lg:order-2">
-          <div className="flex items-center gap-1 mr-24 lg:mr-5">
-            <span className="text-sm text-gray-700 dark:text-white">欢迎，{currentMember}</span>
+          <div className="flex items-center gap-1 lg:mr-5">
+            <span className="text-sm text-gray-700 dark:text-white">欢迎，</span>
+            <span
+              className="text-sm text-gray-700 dark:text-white max-w-[60px] lg:max-w-[60px] truncate"
+              title={currentMember}
+            >
+              {currentMember}
+            </span>
             {isAdmin && (
               <Badge variant="secondary" className="text-xs">
                 管理员
@@ -97,10 +104,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
             )}
           </div>
           
-          {/* 胶囊预留位置 - 桌面端显示 */}
-          <div className="hidden lg:flex w-12 h-8 rounded-full flex items-center justify-center mr-4">
-            {/* 胶囊内容预留 */}
-          </div>
+
         </div>
 
         <div className="justify-between items-center w-full lg:w-auto lg:order-1 hidden lg:flex">

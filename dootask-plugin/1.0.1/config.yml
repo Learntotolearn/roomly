@@ -7,11 +7,6 @@ menu_items:
     url_type: iframe
 
     capsule:                         
-      visible: true                   
       top: 14                         
-      right: 10                       
-      more_menus:                     
-        - label: 菜单1
-          value: 1
 
     background: "#f9fafb|#18181b"

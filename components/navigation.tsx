@@ -36,7 +36,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
 
   return (
     <nav className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 px-2 lg:px-4 py-3 lg:py-4 sticky top-0 z-50">
-      <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl pr-24 lg:pr-17">
+      <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl pr-28 lg:pr-20">
         <div className="flex items-center gap-2 pr-2 lg:pr-2 -ml-2 lg:-ml-2">
           <div className="flex items-center sm:hidden">
           </div>

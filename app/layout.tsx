@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import QueryProvider from "@/lib/context/query-provider";
 import { AppProvider } from "@/lib/context/app-context";
@@ -7,14 +7,29 @@ import { getSystemTheme } from "@/lib/utils";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
+// 本地字体加载
+const geistSans = localFont({
+  src: [
+    {
+      path: "../public/fonts/Geist-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+  ],
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: [
+    {
+      path: "../public/fonts/GeistMono-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+  ],
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,6 +44,7 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const theme = headersList.get('x-theme');
+
   return (
     <html lang="zh-CN" className={getSystemTheme(theme)}>
       <body

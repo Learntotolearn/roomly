@@ -6,6 +6,7 @@ WORKDIR /app
 
 # 复制后端相关文件和目录
 COPY server/ ./
+ENV GOPROXY=https://goproxy.cn,direct
 
 # 安装依赖
 RUN go mod tidy

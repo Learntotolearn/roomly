@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw } from 'lucide-react';
+import { MicrophoneIcon, StopIcon, SearchIcon } from '@/components/ui/icons';
+import { AudioPlayer } from '@/components/ui/audio-player';
 import { format, parseISO } from 'date-fns';
 import { Booking } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
@@ -301,9 +303,9 @@ export default function MyBookingsPage() {
                 const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
                 return (
                   <div key={`${booking.id}-${refreshCounter}`} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-2">
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                           <div className="flex items-center -mr-1"><Badge variant="default">有效</Badge></div>
                           <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium">{booking.room?.name}</span></div>
                           <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDate(booking.date)}</span></div>
@@ -314,27 +316,51 @@ export default function MyBookingsPage() {
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                         <div className="text-sm text-muted-foreground"><strong>AI分析:</strong> {selected?.analysis ? selected.analysis : '-'}</div>
 
-                        <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                           <strong>录音功能: {title}</strong>
-                          <div className="space-y-4">
-                            <div className="flex gap-4">
-                              <Button onClick={() => startRecording(booking.id, title)} disabled={rs.isRecording}>🎤 开始录音</Button>
-                              <Button onClick={() => stopRecording(booking.id)} variant="destructive" disabled={!rs.isRecording}>🛑 结束录音</Button>
-                              <Button onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }} variant="outline" className="flex items-center gap-2"><span>🔍</span> 查询录音</Button>
+                        <div className="space-y-4">
+                          <div className="flex gap-4">
+                              <div 
+                                onClick={() => startRecording(booking.id, title)} 
+                                className={`cursor-pointer p-2 rounded-md transition-colors ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                title="开始录音"
+                              >
+                                <MicrophoneIcon size={20} className="text-blue-600" />
+                              </div>
+                              <div 
+                                onClick={() => stopRecording(booking.id)} 
+                                className={`cursor-pointer p-2 rounded-md transition-colors ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                title="结束录音"
+                              >
+                                <StopIcon size={20} className="text-red-600" />
+                              </div>
+                              <div 
+                                onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }} 
+                                className="cursor-pointer p-2 rounded-md transition-colors hover:bg-gray-100"
+                                title="查询录音"
+                              >
+                                <SearchIcon size={20} className="text-gray-600" />
+                              </div>
                             </div>
                             {openRecordingBookingId === booking.id && rs.recordings.length > 0 && rs.selectedId !== null && (
-                              <div className="max-w-xs">
+                              <div className="max-w-48">
                                 <Select value={String(rs.selectedId)} onValueChange={v => handleSelectValueChange(booking.id, v)}>
-                                  <SelectTrigger className="w-full"><SelectValue placeholder="选择录音" /></SelectTrigger>
+                                  <SelectTrigger className="w-32 text-xs"><SelectValue placeholder="选择录音" /></SelectTrigger>
                                   <SelectContent>
-                                    {rs.recordings.map(r => (<SelectItem key={r.id} value={String(r.id)}>{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>))}
+                                    {rs.recordings.map(r => (<SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>))}
                                   </SelectContent>
                                 </Select>
-                              </div>
+                          </div>
                             )}
                             {openRecordingBookingId === booking.id && rs.audioURL && (
-                              <div className="pt-4"><p className="text-sm text-muted-foreground">录音回放：</p><audio controls src={rs.audioURL} /></div>
-                            )}
+                            <div className="pt-4">
+                                <AudioPlayer 
+                                  src={rs.audioURL} 
+                                  title="录音回放"
+                                  className="w-full"
+                                />
+                            </div>
+                          )}
                             {openRecordingBookingId === booking.id && rs.uploading && (
                               <div className="pt-2"><p className="text-sm text-muted-foreground">正在上传录音...</p></div>
                             )}
@@ -363,29 +389,29 @@ export default function MyBookingsPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center"><CalendarOff className="w-5 h-5 mr-2" />已过期预定 ({expiredBookings.length})</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {expiredBookings.slice(0, expiredShowCount).map((booking: Booking) => (
-                <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
+              <div className="space-y-4">
+                {expiredBookings.slice(0, expiredShowCount).map((booking: Booking) => (
+                  <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                         <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium text-gray-600 dark:text-zinc-300">{booking.room?.name}</span></div>
                         <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span></div>
                         <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
                         <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
-                      </div>
+                          </div>
                       <div className="text-sm text-muted-foreground"><strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}</div>
                       <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                       <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
+                      </div>
+                      <Badge variant="secondary">已过期</Badge>
                     </div>
-                    <Badge variant="secondary">已过期</Badge>
                   </div>
-                </div>
-              ))}
-              {expiredBookings.length > expiredShowCount && (
+                ))}
+                {expiredBookings.length > expiredShowCount && (
                 <div className="flex justify-center mt-4"><Button onClick={() => setExpiredShowCount(c => c + 10)} disabled={expiredLoading}><RefreshCcw className={`w-4 h-4 mr-2${expiredLoading ? ' animate-spin' : ''}`} />加载更多</Button></div>
-              )}
-            </div>
+                )}
+              </div>
           </CardContent>
         </Card>
       )}
@@ -440,4 +466,4 @@ export default function MyBookingsPage() {
       <CancelBookingDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen} onConfirm={handleConfirmCancel} loading={cancelBookingMutation.isPending} />
     </div>
   );
-}
+} 

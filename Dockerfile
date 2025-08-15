@@ -29,7 +29,11 @@ WORKDIR /web
 
 # 复制前端相关文件和目录
 COPY . ./
+RUN npm config set registry https://mirrors.huaweicloud.com/repository/npm/
+# 或者使用淘宝镜像源
+# RUN npm config set registry https://registry.npmmirror.com
 
+RUN npm cache clean --force
 # 安装依赖
 RUN npm install
 

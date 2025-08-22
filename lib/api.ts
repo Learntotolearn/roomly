@@ -1,7 +1,7 @@
 import { Member, Room, Booking, BookingRequest, AvailableSlots } from './types';
 import { getUserInfo } from '@dootask/tools';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://lan-dootask.keli.vip/apps/roomly/api';
 
 // 基础API调用函数
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -250,6 +250,34 @@ export const userApi = {
       token
         ? { headers: { Authorization: `Bearer ${token}` } }
         : undefined
+    );
+  },
+  
+  sendMeetingSummary: async (userIds: number[], summaryContent: string, date?: string, timeSlots?: string[], roomName?: string) => {
+    let token = '';
+    try {
+      const userInfo = await getUserInfo();
+      token = userInfo?.token || '';
+    } catch {
+      token = localStorage.getItem('token') || '';
+    }
+
+    // 使用 POST JSON 方式发送会议纪要通知
+    const payload: Record<string, unknown> = {
+      user_ids: userIds,
+      summary_content: summaryContent,
+    };
+    if (date) payload.date = date;
+    if (timeSlots && timeSlots.length > 0) payload.time_slots = timeSlots;
+    if (roomName) payload.room_name = roomName;
+
+    return apiCall(
+      '/users/summary',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
     );
   },
 }; 

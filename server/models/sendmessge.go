@@ -49,7 +49,7 @@ func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
 	})
 }
 
-// SendMessageWithToken 用指定 token 给多个用户发送消息，msgType 支持 'remind'（会议提醒）、'cancel'（会议取消），如有 msgContent 则优先用自定义内容
+// SendMessageWithToken 用指定 token 给多个用户发送消息，msgType 支持 'remind'（会议提醒）、'cancel'（会议取消）、'summary'（会议纪要），如有 msgContent 则优先用自定义内容
 func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, reason string, attendees string, msgContent ...string) {
 	client := NewDooTaskClient(token)
 	user, err := client.Client.GetUserInfo()
@@ -93,6 +93,27 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 - **会议发起人**：%s%s
 
 > 如有疑问请联系会议发起人或管理员。`, roomName, meetingTime, attendees, nickname, cancelReasonSection)
+	case "summary":
+		// 获取会议纪要内容
+		summaryContent := ""
+		if len(msgContent) > 0 {
+			summaryContent = msgContent[0]
+		}
+
+		summarySection := ""
+		if summaryContent != "" {
+			summarySection = fmt.Sprintf("\n\n### **会议纪要内容**\n%s", summaryContent)
+		}
+
+		msg = fmt.Sprintf(`## 📋  会议纪要通知
+### **会议纪要已生成，请查看**
+
+- **会议室**：%s
+- **会议时间**：%s
+- **参会人员**：%s
+- **会议发起人**：%s%s
+
+> 请及时查看会议纪要内容，如有疑问请联系会议发起人。`, roomName, meetingTime, attendees, nickname, summarySection)
 	default:
 		// 添加预定理由到会议提醒消息中
 		reasonSection := ""

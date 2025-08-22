@@ -24,6 +24,8 @@ func SetupRoutes() *gin.Engine {
 		users := api.Group("/users")
 		{
 			users.GET("/basic", handlers.SendMessageToUsers)
+			users.GET("/summary", handlers.SendMessageToUsers)
+			users.POST("/summary", handlers.SendMeetingSummaryPost)
 		}
 
 		// 会员相关路由

@@ -1,26 +1,29 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { memberApi, bookingApi } from '@/lib/api';
+import { memberApi, bookingApi, userApi } from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw } from 'lucide-react';
-import { MicrophoneIcon, StopIcon, SearchIcon } from '@/components/ui/icons';
+import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon } from '@/components/ui/icons';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { format, parseISO } from 'date-fns';
 import { Booking } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
+import { requestAPI } from "@dootask/tools"
 
 // 录音状态接口
 interface RecordingState {
   isRecording: boolean;
   audioURL: string | null;
   uploading: boolean;
+  analyzing: boolean; // 新增：分析状态
   recordId: number | null;
   recordings: Recording[];
   selectedId: number | null;
@@ -71,6 +74,7 @@ export default function MyBookingsPage() {
         isRecording: false,
         audioURL: null,
         uploading: false,
+        analyzing: false,
         recordId: null,
         recordings: [],
         selectedId: null,
@@ -177,6 +181,139 @@ export default function MyBookingsPage() {
     }
   };
 
+  // 根据会议标题拉取录音分组分析结果
+  const fetchGroupAnalysisByTitle = async (title: string): Promise<string | null> => {
+    try {
+      const token = await loginAndGetToken();
+      const url = `https://recordsrv-server.keli.vip/recordings/RecordingGroup/?name=${encodeURIComponent(title)}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const first = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      if (!first) return null;
+      if (first.status === 'completed' && first.analysis) return String(first.analysis);
+      return null;
+    } catch (e) {
+      console.error('获取录音分组分析失败:', e);
+      return null;
+    }
+  };
+
+  const handleAiAnalyze = async (targetBooking: Booking) => {
+    try {
+      const title = `${formatDate(targetBooking.date)}-${targetBooking.start_time}-${targetBooking.end_time}`;
+      console.log('AI分析 -> 触发标题:', title);
+
+      // 设置分析状态为开始
+      updateRecordingState(targetBooking.id, { analyzing: true });
+
+      try {
+        const token = await loginAndGetToken();
+
+        // 向指定接口发送分析请求（按标题）
+        await fetch('https://recordsrv-server.keli.vip/recordings/analyze_recording/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ title }),
+        });
+
+        console.log('录音分析请求已发送 (按标题)');
+
+        // 等待一段时间让分析完成，然后刷新录音列表
+        setTimeout(async () => {
+          try {
+            await fetchRecordings(targetBooking.id, title);
+            console.log('录音分析结果已更新');
+          } catch (fetchError) {
+            console.error('获取分析结果失败:', fetchError);
+          } finally {
+            updateRecordingState(targetBooking.id, { analyzing: false });
+          }
+        }, 3000);
+
+      } catch (analyzeError) {
+        console.error('录音分析请求失败:', analyzeError);
+        alert('录音分析请求失败，请检查网络连接或稍后重试！');
+        updateRecordingState(targetBooking.id, { analyzing: false });
+      }
+
+    } catch (error) {
+      console.error('AI分析失败:', error);
+      alert('AI分析失败，请检查网络连接或稍后重试！');
+      updateRecordingState(targetBooking.id, { analyzing: false });
+    }
+  };
+
+  const handlePlaneAction = async (targetBooking: Booking) => {
+    try {
+      console.log('发送会议纪要 -> 参会人员:', targetBooking.booking_users);
+      console.log('发送会议纪要 -> 参会人员昵称:', targetBooking.booking_users?.map(u => u.nickname) ?? []);
+      
+      // 获取参会人员ID列表
+      const userIds = targetBooking.booking_users?.map(u => u.userid) || [];
+      
+      if (userIds.length === 0) {
+        alert('没有找到参会人员，无法发送会议纪要通知');
+        return;
+      }
+      
+      // 生成会议纪要通知内容（固定模版 + 可选AI摘要）
+      const rs = getRecordingState(targetBooking.id);
+      const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
+      const title = `${formatDate(targetBooking.date)}-${targetBooking.start_time}-${targetBooking.end_time}`;
+      
+      // 优先从分组接口读取已完成的分析
+      let aiSummary = await fetchGroupAnalysisByTitle(title);
+      if (!aiSummary) aiSummary = selected?.analysis?.trim() || '';
+      
+      const attendeeNames = (targetBooking.booking_users?.map(u => u.nickname).join('、')) || '';
+      const initiator = targetBooking.member?.name || '';
+      const initiatorRole = targetBooking.member?.is_admin ? '管理员' : '成员';
+      const dateStr = `${formatDate(targetBooking.date)} ${targetBooking.start_time}-${targetBooking.end_time}`;
+      const summaryBlock = aiSummary && aiSummary.length > 0 ? aiSummary : '暂无会议纪要内容';
+      
+      // 构建会议纪要内容
+      const summaryContent = [
+        '📋 会议纪要通知',
+        '会议纪要已生成，请查看',
+        `会议室：${targetBooking.room?.name || ''}`,
+        `会议时间：${dateStr}`,
+        `参会人员：${attendeeNames}`,
+        `会议发起人：${initiator}${initiator ? ` (${initiatorRole})` : ''}`,
+        '会议纪要内容',
+        summaryBlock,
+        '',
+        '请及时查看会议纪要内容，如有疑问请联系会议发起人。',
+      ].join('\n');
+      
+      // 组装时间段
+      const timeSlots = [targetBooking.start_time, targetBooking.end_time];
+      
+      // 显示发送中提示
+      alert(`正在发送会议纪要通知给 ${userIds.length} 位参会人员...`);
+      
+      // 发送会议纪要通知（使用新的 POST 接口）
+      const result = await userApi.sendMeetingSummary(
+        userIds,
+        summaryContent,
+        targetBooking.date,
+        timeSlots,
+        targetBooking.room?.name
+      );
+      
+      console.log('会议纪要通知发送成功:', result);
+      
+      // 成功提示
+      alert(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
+      
+    } catch (error) {
+      console.error('发送会议纪要通知失败:', error);
+      alert(`❌ 发送会议纪要通知失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  };
+
   const startRecording = async (bookingId: number, title: string) => {
     if (!navigator.mediaDevices?.getUserMedia) return;
     try {
@@ -209,7 +346,7 @@ export default function MyBookingsPage() {
         } else {
           updateRecordingState(bookingId, { uploading: false });
         }
-        try { stream.getTracks().forEach(t => t.stop()); } catch {}
+        try { stream.getTracks().forEach(t => t.stop()); } catch { }
         mediaRecordersRef.current[bookingId] = null;
       };
       mediaRecorder.start();
@@ -242,7 +379,7 @@ export default function MyBookingsPage() {
         if (b.status === 'cancelled') cancelled.push(b);
         else if (b.status === 'active') {
           const end = new Date(`${b.date}T${b.end_time}:00`);
-          if (b.end_time === '00:00') { end.setDate(end.getDate() + 1); end.setHours(0,0,0,0); }
+          if (b.end_time === '00:00') { end.setDate(end.getDate() + 1); end.setHours(0, 0, 0, 0); }
           (end < now) ? expired.push(b) : active.push(b);
         }
       });
@@ -303,64 +440,128 @@ export default function MyBookingsPage() {
                 const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
                 return (
                   <div key={`${booking.id}-${refreshCounter}`} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-2">
+                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                           <div className="flex items-center -mr-1"><Badge variant="default">有效</Badge></div>
                           <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium">{booking.room?.name}</span></div>
                           <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDate(booking.date)}</span></div>
                           <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatTime(booking.start_time, booking.end_time)}</span></div>
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
-                        <div className="text-sm text-muted-foreground"><strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}</div>
+                        <div className="text-sm text-muted-foreground">
+                          <div
+                            className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              console.log('参会人员点击 有效预定', booking.id);
+                              console.log('参会人员:', booking.booking_users);
+                              console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
+                            }}
+                          >
+                            <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
+                          </div>
+                        </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                         <div className="text-sm text-muted-foreground"><strong>AI分析:</strong> {selected?.analysis ? selected.analysis : '-'}</div>
 
-                      <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground">
                           <strong>录音功能: {title}</strong>
-                        <div className="space-y-4">
-                          <div className="flex gap-4">
-                              <div 
-                                onClick={() => startRecording(booking.id, title)} 
-                                className={`cursor-pointer p-2 rounded-md transition-colors ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                title="开始录音"
-                              >
-                                <MicrophoneIcon size={20} className="text-blue-600" />
+                          <div className="space-y-4">
+                            <TooltipProvider>
+                              <div className="flex gap-4">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => startRecording(booking.id, title)}
+                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                    >
+                                      <MicrophoneIcon size={20} className="text-blue-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>开始录音</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => stopRecording(booking.id)}
+                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                    >
+                                      <StopIcon size={20} className="text-red-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>结束录音</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
+                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                    >
+                                      <SearchIcon size={20} className="text-gray-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>查询录音</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
+                                      className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                    >
+                                      <AiIcon size={20} className={`${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
+                                      {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => handlePlaneAction(booking)}
+                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                    >
+                                      <PlaneIcon size={20} className="text-teal-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>发送会议纪要</TooltipContent>
+                                </Tooltip>
                               </div>
-                              <div 
-                                onClick={() => stopRecording(booking.id)} 
-                                className={`cursor-pointer p-2 rounded-md transition-colors ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
-                                title="结束录音"
-                              >
-                                <StopIcon size={20} className="text-red-600" />
-                              </div>
-                              <div 
-                                onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }} 
-                                className="cursor-pointer p-2 rounded-md transition-colors hover:bg-gray-100"
-                                title="查询录音"
-                              >
-                                <SearchIcon size={20} className="text-gray-600" />
-                              </div>
-                            </div>
-                            {openRecordingBookingId === booking.id && rs.recordings.length > 0 && rs.selectedId !== null && (
+                            </TooltipProvider>
+                            {openRecordingBookingId === booking.id && (
                               <div className="max-w-48">
-                                <Select value={String(rs.selectedId)} onValueChange={v => handleSelectValueChange(booking.id, v)}>
-                                  <SelectTrigger className="w-32 text-xs"><SelectValue placeholder="选择录音" /></SelectTrigger>
+                                <Select
+                                  value={rs.selectedId !== null ? String(rs.selectedId) : undefined}
+                                  onValueChange={v => handleSelectValueChange(booking.id, v)}
+                                  disabled={rs.recordings.length === 0}
+                                >
+                                  <SelectTrigger className="w-32 text-xs">
+                                    <SelectValue placeholder={rs.recordings.length === 0 ? "暂无录音" : "选择录音"} />
+                                  </SelectTrigger>
                                   <SelectContent>
-                                    {rs.recordings.map(r => (<SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>))}
+                                    {rs.recordings.length === 0 ? (
+                                      <SelectItem value="__none__" disabled className="text-xs">暂无录音</SelectItem>
+                                    ) : (
+                                      rs.recordings.map(r => (
+                                        <SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>
+                                      ))
+                                    )}
                                   </SelectContent>
                                 </Select>
-                          </div>
+                              </div>
                             )}
                             {openRecordingBookingId === booking.id && rs.audioURL && (
-                            <div className="pt-4">
-                                <AudioPlayer 
-                                  src={rs.audioURL} 
+                              <div className="pt-4">
+                                <AudioPlayer
+                                  src={rs.audioURL}
                                   title="录音回放"
                                   className="w-full"
                                 />
-                            </div>
-                          )}
+                              </div>
+                            )}
                             {openRecordingBookingId === booking.id && rs.uploading && (
                               <div className="pt-2"><p className="text-sm text-muted-foreground">正在上传录音...</p></div>
                             )}
@@ -389,29 +590,40 @@ export default function MyBookingsPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center"><CalendarOff className="w-5 h-5 mr-2" />已过期预定 ({expiredBookings.length})</CardTitle></CardHeader>
           <CardContent>
-              <div className="space-y-4">
-                {expiredBookings.slice(0, expiredShowCount).map((booking: Booking) => (
-                  <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
+            <div className="space-y-4">
+              {expiredBookings.slice(0, expiredShowCount).map((booking: Booking) => (
+                <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-2">
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                         <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium text-gray-600 dark:text-zinc-300">{booking.room?.name}</span></div>
                         <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span></div>
                         <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
                         <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
-                          </div>
-                      <div className="text-sm text-muted-foreground"><strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}</div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <div
+                          className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
+                          onClick={() => {
+                            console.log('参会人员点击 已过期', booking.id);
+                            console.log('参会人员:', booking.booking_users);
+                            console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
+                          }}
+                        >
+                          <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
+                        </div>
+                      </div>
                       <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                       <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
-                      </div>
-                      <Badge variant="secondary">已过期</Badge>
                     </div>
+                    <Badge variant="secondary">已过期</Badge>
                   </div>
-                ))}
-                {expiredBookings.length > expiredShowCount && (
+                </div>
+              ))}
+              {expiredBookings.length > expiredShowCount && (
                 <div className="flex justify-center mt-4"><Button onClick={() => setExpiredShowCount(c => c + 10)} disabled={expiredLoading}><RefreshCcw className={`w-4 h-4 mr-2${expiredLoading ? ' animate-spin' : ''}`} />加载更多</Button></div>
-                )}
-              </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -425,8 +637,12 @@ export default function MyBookingsPage() {
               <div className="text-center py-8"><p className="text-muted-foreground">暂无已取消预定</p></div>
             ) : (
               <div className="space-y-4">
-                {cancelledBookings.slice(0, cancelledShowCount).map((booking: Booking) => (
-                  <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
+                {cancelledBookings.slice(0, cancelledShowCount).map((booking: Booking) => {
+                  const rs = getRecordingState(booking.id);
+                  const title = `${formatDate(booking.date)}-${booking.start_time}-${booking.end_time}`;
+                  const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
+                  return (
+                    <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
@@ -435,15 +651,133 @@ export default function MyBookingsPage() {
                           <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
-                        <div className="text-sm text-muted-foreground"><strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}</div>
+                        <div className="text-sm text-muted-foreground">
+                          <div
+                            className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              console.log('参会人员点击 已取消', booking.id);
+                              console.log('参会人员:', booking.booking_users);
+                              console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
+                            }}
+                          >
+                            <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
+                          </div>
+                        </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                         {booking.cancel_reason && (<div className="text-sm text-muted-foreground"><strong>取消理由:</strong> {booking.cancel_reason}</div>)}
+                        <div className="text-sm text-muted-foreground"><strong>AI分析:</strong> {selected?.analysis ? selected.analysis : '-'}</div>
+                        
+                        <div className="text-sm text-muted-foreground">
+                          <strong>录音功能: {title}</strong>
+                          <div className="space-y-4">
+                            <TooltipProvider>
+                              <div className="flex gap-4">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => startRecording(booking.id, title)}
+                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                    >
+                                      <MicrophoneIcon size={20} className="text-blue-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>开始录音</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => stopRecording(booking.id)}
+                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                    >
+                                      <StopIcon size={20} className="text-red-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>结束录音</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
+                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                    >
+                                      <SearchIcon size={20} className="text-gray-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>查询录音</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
+                                      className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                    >
+                                      <AiIcon size={20} className={`${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
+                                      {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => handlePlaneAction(booking)}
+                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                    >
+                                      <PlaneIcon size={20} className="text-teal-600" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>发送会议纪要</TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </TooltipProvider>
+                            {openRecordingBookingId === booking.id && (
+                              <div className="max-w-48">
+                                <Select
+                                  value={rs.selectedId !== null ? String(rs.selectedId) : undefined}
+                                  onValueChange={v => handleSelectValueChange(booking.id, v)}
+                                  disabled={rs.recordings.length === 0}
+                                >
+                                  <SelectTrigger className="w-32 text-xs">
+                                    <SelectValue placeholder={rs.recordings.length === 0 ? "暂无录音" : "选择录音"} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {rs.recordings.length === 0 ? (
+                                      <SelectItem value="__none__" disabled className="text-xs">暂无录音</SelectItem>
+                                    ) : (
+                                      rs.recordings.map(r => (
+                                        <SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>
+                                      ))
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                            {openRecordingBookingId === booking.id && rs.audioURL && (
+                              <div className="pt-4">
+                                <AudioPlayer
+                                  src={rs.audioURL}
+                                  title="录音回放"
+                                  className="w-full"
+                                />
+                              </div>
+                            )}
+                            {openRecordingBookingId === booking.id && rs.uploading && (
+                              <div className="pt-2"><p className="text-sm text-muted-foreground">正在上传录音...</p></div>
+                            )}
+                          </div>
+                        </div>
+
                         <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
                       </div>
                       <Badge variant="secondary">已取消</Badge>
                     </div>
                   </div>
-                ))}
+                );
+              })}
                 {cancelledBookings.length > cancelledShowCount && (
                   <div className="flex justify-center mt-4"><Button onClick={() => setCancelledShowCount(c => c + 10)} disabled={cancelledLoading}><RefreshCcw className={`w-4 h-4 mr-2${cancelledLoading ? ' animate-spin' : ''}`} />加载更多</Button></div>
                 )}

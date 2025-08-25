@@ -49,6 +49,21 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, className, title 
     };
   }, []);
 
+  // 监听 src 变化，重新加载音频
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !src) return;
+
+    // 重置状态
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsLoading(true);
+
+    // 重新加载音频
+    audio.load();
+  }, [src]);
+
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;

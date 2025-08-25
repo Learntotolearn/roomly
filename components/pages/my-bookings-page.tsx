@@ -17,6 +17,7 @@ import { calculateDuration, formatDuration } from '@/lib/utils';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
 import { requestAPI } from "@dootask/tools"
+import { toast } from "sonner";
 
 // 录音状态接口
 interface RecordingState {
@@ -111,24 +112,45 @@ export default function MyBookingsPage() {
       if (!res.ok) throw new Error('获取录音信息失败');
       const data: Recording[] = await res.json();
 
-      const clean = data.map(r => ({
-        ...r,
-        title: (r.title || '').replace(/\s*-\s*$/, '').replace(/\s*Invalid Date\s*$/, ''),
-      }));
+      console.log('获取到的原始录音数据:', data);
+
+      const clean = data.map(r => {
+        // 使用类型断言处理服务器返回的数据格式
+        const serverData = r as any;
+        return {
+          ...r,
+          id: serverData.id || serverData.Id, // 兼容大小写
+          title: (serverData.title || '').replace(/\s*-\s*$/, '').replace(/\s*Invalid Date\s*$/, ''),
+          duration: serverData.duration || null, // 允许 duration 为 null
+        };
+      });
       const matched = clean.filter(r => (r.title || '').includes(title) || title.includes(r.title || ''));
       const list = matched.length > 0 ? matched : clean;
-      list.sort((a, b) => new Date(b.upload_time).getTime() - new Date(a.upload_time).getTime());
+      
+      // 去重：根据 ID 去重，保留最新的
+      const uniqueMap = new Map<number, Recording>();
+      list.forEach(r => {
+        if (!uniqueMap.has(r.id) || new Date(r.upload_time) > new Date(uniqueMap.get(r.id)!.upload_time)) {
+          uniqueMap.set(r.id, r);
+        }
+      });
+      const uniqueList = Array.from(uniqueMap.values());
+      
+      // 按上传时间排序
+      uniqueList.sort((a, b) => new Date(b.upload_time).getTime() - new Date(a.upload_time).getTime());
+
+      console.log('处理后的录音列表:', uniqueList.map(r => ({ id: r.id, title: r.title, upload_time: r.upload_time })));
 
       const currentSelectedId = recordingStates[bookingId]?.selectedId ?? null;
-      const keep = currentSelectedId !== null && list.some(r => r.id === currentSelectedId);
-      const newSelectedId = keep ? currentSelectedId : (list[0]?.id ?? null);
-      const newAudioURL = keep ? (list.find(r => r.id === currentSelectedId!)?.audio_file ?? null) : (list[0]?.audio_file ?? null);
+      const keep = currentSelectedId !== null && uniqueList.some(r => r.id === currentSelectedId);
+      const newSelectedId = keep ? currentSelectedId : (uniqueList[0]?.id ?? null);
+      const newAudioURL = keep ? (uniqueList.find(r => r.id === currentSelectedId!)?.audio_file ?? null) : (uniqueList[0]?.audio_file ?? null);
 
       setRecordingStates(prev => ({
         ...prev,
         [bookingId]: {
           ...(prev[bookingId] ?? getRecordingState(bookingId)),
-          recordings: list,
+          recordings: uniqueList,
           selectedId: newSelectedId,
           audioURL: newAudioURL,
         },
@@ -140,11 +162,26 @@ export default function MyBookingsPage() {
   };
 
   const handleSelectValueChange = (bookingId: number, value: string) => {
+    // 处理无效的 value
+    if (!value || value === 'undefined' || value === '__none__') {
+      console.log('选择录音: 无效值，重置选择');
+      updateRecordingState(bookingId, { selectedId: null, audioURL: null });
+      return;
+    }
+    
     const id = parseInt(value, 10);
+    if (isNaN(id)) {
+      console.error('选择录音: 无效的ID', { bookingId, value, id });
+      return;
+    }
+    
     const current = getRecordingState(bookingId);
     const found = current.recordings.find(r => r.id === id);
     if (found) {
+      console.log('选择录音:', { bookingId, selectedId: id, audioURL: found.audio_file });
       updateRecordingState(bookingId, { selectedId: id, audioURL: found.audio_file });
+    } else {
+      console.error('未找到录音:', { bookingId, value, id, recordings: current.recordings });
     }
   };
 
@@ -155,14 +192,40 @@ export default function MyBookingsPage() {
       formData.append('user', '1');
       formData.append('title', title);
       formData.append('audio_file', blob, `recording-${Date.now()}.webm`);
+      
+      console.log('开始上传录音:', { title, blobSize: blob.size });
+      
       const res = await fetch('https://recordsrv-server.keli.vip/recordings/Recording/', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (!res.ok) throw new Error('上传失败');
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('上传录音失败 - HTTP错误:', { status: res.status, statusText: res.statusText, error: errorText });
+        throw new Error(`上传失败: ${res.status} ${res.statusText}`);
+      }
+      
       const data = await res.json();
-      return data as Recording;
+      console.log('录音上传响应:', data);
+      
+      // 验证响应数据是否包含必要的字段（兼容大小写）
+      const serverData = data as any;
+      const recordingId = serverData.id || serverData.Id;
+      if (!data || !recordingId) {
+        console.error('录音上传响应缺少必要字段:', data);
+        return null;
+      }
+      
+      // 标准化数据格式
+      const normalizedData = {
+        ...data,
+        id: recordingId, // 统一使用小写 id
+        duration: serverData.duration || null, // 允许 duration 为 null
+      };
+      
+      return normalizedData as Recording;
     } catch (e) {
       console.error('上传录音失败:', e);
       return null;
@@ -235,13 +298,13 @@ export default function MyBookingsPage() {
 
       } catch (analyzeError) {
         console.error('录音分析请求失败:', analyzeError);
-        alert('录音分析请求失败，请检查网络连接或稍后重试！');
+        toast.error('录音分析请求失败，请检查网络连接或稍后重试！');
         updateRecordingState(targetBooking.id, { analyzing: false });
       }
 
     } catch (error) {
       console.error('AI分析失败:', error);
-      alert('AI分析失败，请检查网络连接或稍后重试！');
+      toast.error('AI分析失败，请检查网络连接或稍后重试！');
       updateRecordingState(targetBooking.id, { analyzing: false });
     }
   };
@@ -255,7 +318,7 @@ export default function MyBookingsPage() {
       const userIds = targetBooking.booking_users?.map(u => u.userid) || [];
       
       if (userIds.length === 0) {
-        alert('没有找到参会人员，无法发送会议纪要通知');
+        toast.error('没有找到参会人员，无法发送会议纪要通知');
         return;
       }
       
@@ -292,7 +355,7 @@ export default function MyBookingsPage() {
       const timeSlots = [targetBooking.start_time, targetBooking.end_time];
       
       // 显示发送中提示
-      alert(`正在发送会议纪要通知给 ${userIds.length} 位参会人员...`);
+      toast.info(`正在发送会议纪要通知给 ${userIds.length} 位参会人员...`);
       
       // 发送会议纪要通知（使用新的 POST 接口）
       const result = await userApi.sendMeetingSummary(
@@ -306,11 +369,11 @@ export default function MyBookingsPage() {
       console.log('会议纪要通知发送成功:', result);
       
       // 成功提示
-      alert(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
+      toast.success(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
       
     } catch (error) {
       console.error('发送会议纪要通知失败:', error);
-      alert(`❌ 发送会议纪要通知失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      toast.error(`❌ 发送会议纪要通知失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -326,7 +389,8 @@ export default function MyBookingsPage() {
         const url = URL.createObjectURL(blob);
         updateRecordingState(bookingId, { audioURL: url, isRecording: false, uploading: true });
         const created = await uploadRecording(blob, title);
-        if (created) {
+        if (created && created.id) {
+          console.log('录音上传成功:', { id: created.id, title: created.title });
           setRecordingStates(prev => {
             const cur = prev[bookingId] ?? getRecordingState(bookingId);
             return {
@@ -341,9 +405,11 @@ export default function MyBookingsPage() {
               },
             };
           });
+          // 确保有有效的 ID 才进行分析
           await analyzeRecording(created.id);
           await fetchRecordings(bookingId, title);
         } else {
+          console.error('录音上传失败或返回无效数据:', created);
           updateRecordingState(bookingId, { uploading: false });
         }
         try { stream.getTracks().forEach(t => t.stop()); } catch { }
@@ -408,9 +474,18 @@ export default function MyBookingsPage() {
   const formatTime = (start: string, end: string) => (end === '00:00' ? `${start} - 24:00` : `${start} - ${end}`);
   const formatUploadTime = (t?: string | null) => {
     if (!t) return '-';
-    const d = new Date(t); if (!isNaN(d.getTime())) return d.toLocaleString();
-    const n = (t || '').toString(); const norm = n.includes(' ') ? n.replace(' ', 'T') : n; const d2 = new Date(norm);
-    return isNaN(d2.getTime()) ? norm : d2.toLocaleString();
+    const d = new Date(t); 
+    if (!isNaN(d.getTime())) {
+      // 显示更简洁的时间格式：MM-DD HH:mm
+      return `${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    }
+    const n = (t || '').toString(); 
+    const norm = n.includes(' ') ? n.replace(' ', 'T') : n; 
+    const d2 = new Date(norm);
+    if (!isNaN(d2.getTime())) {
+      return `${(d2.getMonth() + 1).toString().padStart(2, '0')}-${d2.getDate().toString().padStart(2, '0')} ${d2.getHours().toString().padStart(2, '0')}:${d2.getMinutes().toString().padStart(2, '0')}`;
+    }
+    return norm;
   };
 
   if (activeLoading && expiredLoading && cancelledLoading) {
@@ -534,7 +609,7 @@ export default function MyBookingsPage() {
                             {openRecordingBookingId === booking.id && (
                               <div className="max-w-48">
                                 <Select
-                                  value={rs.selectedId !== null ? String(rs.selectedId) : undefined}
+                                  value={rs.selectedId !== null ? String(rs.selectedId) : ""}
                                   onValueChange={v => handleSelectValueChange(booking.id, v)}
                                   disabled={rs.recordings.length === 0}
                                 >
@@ -545,9 +620,19 @@ export default function MyBookingsPage() {
                                     {rs.recordings.length === 0 ? (
                                       <SelectItem value="__none__" disabled className="text-xs">暂无录音</SelectItem>
                                     ) : (
-                                      rs.recordings.map(r => (
-                                        <SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>
-                                      ))
+                                      rs.recordings.map((r, index) => {
+                                        // 生成更友好的显示名称
+                                        const uploadTime = formatUploadTime(r.upload_time);
+                                        const timeStr = uploadTime !== '-' ? uploadTime : '';
+                                        const duration = r.duration ? `(${Math.round(r.duration)}秒)` : '';
+                                        const displayName = `录音${index + 1} ${timeStr} ${duration}`.trim();
+                                        
+                                        return (
+                                          <SelectItem key={r.id} value={String(r.id)} className="text-xs">
+                                            {displayName}
+                                          </SelectItem>
+                                        );
+                                      })
                                     )}
                                   </SelectContent>
                                 </Select>

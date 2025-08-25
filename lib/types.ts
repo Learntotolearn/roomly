@@ -61,6 +61,17 @@ export interface BookingRequest {
   booking_users: BookingUser[];
 }
 
+// 录音相关类型
+export interface Recording {
+  id: number;
+  title: string;
+  audio_file: string;
+  duration: number | null;
+  upload_time: string;
+  created_at: string;
+  analysis?: string;
+}
+
 // API响应类型
 export interface ApiResponse<T> {
   data?: T;

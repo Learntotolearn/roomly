@@ -194,7 +194,19 @@ export default function AdminMembersPage() {
                     {!member.is_admin && !member.is_room_admin && <Badge variant="outline">普通用户</Badge>}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(member.created_at), 'yyyy-MM-dd HH:mm')}
+                    {(() => {
+                      try {
+                        // 修复时间显示：直接解析时间字符串，避免时区转换问题
+                        const utcMatch = member.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                        if (utcMatch) {
+                          const [, year, month, day, hour, minute] = utcMatch;
+                          return `${year}-${month}-${day} ${hour}:${minute}`;
+                        }
+                        return member.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                      } catch (error) {
+                        return member.created_at;
+                      }
+                    })()}
                   </TableCell>
                   <TableCell>
                     {/* 会议室管理员操作按钮 */}

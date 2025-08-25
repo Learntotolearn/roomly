@@ -102,12 +102,8 @@ func GetMemberBookings(c *gin.Context) {
 	// 新增：分组过滤
 	if status == "active" {
 		db = db.Where("status = ?", "active")
-		// 只查未过期的
-		db = db.Where("(date > ? OR (date = ? AND end_time > ?))", time.Now().Format("2006-01-02"), time.Now().Format("2006-01-02"), time.Now().Format("15:04"))
 	} else if status == "expired" {
-		db = db.Where("status = ?", "active")
-		// 只查已过期的
-		db = db.Where("(date < ? OR (date = ? AND end_time <= ?))", time.Now().Format("2006-01-02"), time.Now().Format("2006-01-02"), time.Now().Format("15:04"))
+		db = db.Where("status = ?", "expired")
 	} else if status == "cancelled" {
 		db = db.Where("status = ?", "cancelled")
 	}
@@ -507,13 +503,48 @@ func markBookedSlots(allSlots []models.TimeSlot, bookings []models.Booking) []mo
 }
 
 func isBookingExpired(booking models.Booking) bool {
-	if booking.EndTime == "24:00" || booking.EndTime == "00:00" {
-		endDateTime, _ := time.Parse("2006-01-02 15:04:05", booking.Date+" 23:59:59")
-		return booking.Status == "active" && endDateTime.Before(time.Now())
-	}
-	endDateTime, err := time.Parse("2006-01-02 15:04", booking.Date+" "+booking.EndTime)
+	// 解析预定日期
+	bookingDate, err := time.Parse("2006-01-02", booking.Date)
 	if err != nil {
 		return false
 	}
-	return booking.Status == "active" && endDateTime.Before(time.Now())
+
+	// 处理结束时间，特别是24:00和跨日00:00的情况
+	var endTime time.Time
+	if booking.EndTime == "24:00" {
+		// 24:00表示当天的24点，即次日的00:00:00
+		endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
+			0, 0, 0, 0, bookingDate.Location())
+	} else if booking.EndTime == "00:00" {
+		// 对于00:00结束时间，使用逻辑推理判断是否跨日
+		// 解析开始时间
+		startTimeStr := booking.StartTime + ":00"
+		parsedStartTime, err := time.Parse("15:04:05", startTimeStr)
+		if err != nil {
+			return false
+		}
+
+		// 逻辑推理：如果开始时间不是00:00，且结束时间是00:00，则认为是跨日预订
+		if parsedStartTime.Hour() > 0 || parsedStartTime.Minute() > 0 {
+			// 跨日：结束时间是次日的00:00:00
+			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
+				0, 0, 0, 0, bookingDate.Location())
+		} else {
+			// 同日：00:00-00:00的特殊情况（理论上不应该存在）
+			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
+				0, 0, 0, 0, bookingDate.Location())
+		}
+	} else {
+		// 解析结束时间
+		endTimeStr := booking.EndTime + ":00"
+		parsedTime, err := time.Parse("15:04:05", endTimeStr)
+		if err != nil {
+			return false
+		}
+		// 组合日期和时间
+		endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
+			parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, bookingDate.Location())
+	}
+
+	return booking.Status == "active" && endTime.Before(time.Now())
 }

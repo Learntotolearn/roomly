@@ -439,16 +439,19 @@ export default function MyBookingsPage() {
     setActiveLoading(true); setExpiredLoading(true); setCancelledLoading(true);
     try {
       const { filtered } = await loadBookings();
-      const now = new Date();
       const active: Booking[] = []; const expired: Booking[] = []; const cancelled: Booking[] = [];
+      
+      // 完全依赖后端返回的status字段，不再做前端过期判断
       filtered.forEach((b: Booking) => {
-        if (b.status === 'cancelled') cancelled.push(b);
-        else if (b.status === 'active') {
-          const end = new Date(`${b.date}T${b.end_time}:00`);
-          if (b.end_time === '00:00') { end.setDate(end.getDate() + 1); end.setHours(0, 0, 0, 0); }
-          (end < now) ? expired.push(b) : active.push(b);
+        if (b.status === 'cancelled') {
+          cancelled.push(b);
+        } else if (b.status === 'expired') {
+          expired.push(b);
+        } else if (b.status === 'active') {
+          active.push(b);
         }
       });
+      
       setActiveBookings(active); setExpiredBookings(expired); setCancelledBookings(cancelled);
     } catch (e) { console.error('加载预定数据失败:', e); }
     finally { setActiveLoading(false); setExpiredLoading(false); setCancelledLoading(false); }
@@ -470,7 +473,7 @@ export default function MyBookingsPage() {
   const handleCancelBooking = (bookingId: number) => { setCancelBookingId(bookingId); setCancelDialogOpen(true); };
   const handleConfirmCancel = (cancelReason: string) => { if (cancelBookingId) cancelBookingMutation.mutate({ bookingId: cancelBookingId, cancelReason }); };
 
-  const formatDate = (s: string) => { try { return format(parseISO(s), 'yyyy年MM月dd日'); } catch { return s; } };
+  const formatDate = (s: string) => { try { return format(new Date(s), 'yyyy年MM月dd日'); } catch { return s; } };
   const formatTime = (start: string, end: string) => (end === '00:00' ? `${start} - 24:00` : `${start} - ${end}`);
   const formatUploadTime = (t?: string | null) => {
     if (!t) return '-';
@@ -525,14 +528,7 @@ export default function MyBookingsPage() {
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <div
-                            className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
-                            onClick={() => {
-                              console.log('参会人员点击 有效预定', booking.id);
-                              console.log('参会人员:', booking.booking_users);
-                              console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
-                            }}
-                          >
+                          <div>
                             <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
                           </div>
                         </div>
@@ -653,7 +649,24 @@ export default function MyBookingsPage() {
                           </div>
                         </div>
 
-                        <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
+                        <div className="text-xs text-muted-foreground">预定时间: {(() => {
+                          try {
+                            // 关键修复：数据库中的UTC时间实际上就是北京时间，只是格式问题
+                            // 服务器在北京时间16:48创建，但保存为UTC格式16:48Z
+                            // 我们需要将这个UTC时间直接当作北京时间显示
+                            const utcMatch = booking.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                            if (utcMatch) {
+                              const [, year, month, day, hour, minute] = utcMatch;
+                              return `${year}-${month}-${day} ${hour}:${minute}`;
+                            }
+                            
+                            // 备用方案
+                            return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                          } catch (error) {
+                            console.error('时间格式化错误:', error);
+                            return booking.created_at;
+                          }
+                        })()}</div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
                         <Button variant="outline" size="sm" onClick={() => handleCancelBooking(booking.id)} disabled={cancelBookingMutation.isPending}><X className="w-4 h-4 mr-1" />取消</Button>
@@ -687,19 +700,27 @@ export default function MyBookingsPage() {
                         <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        <div
-                          className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
-                          onClick={() => {
-                            console.log('参会人员点击 已过期', booking.id);
-                            console.log('参会人员:', booking.booking_users);
-                            console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
-                          }}
-                        >
+                        <div>
                           <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
-                      <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
+                      <div className="text-xs text-muted-foreground">预定时间: {(() => {
+                        try {
+                          // 关键修复：数据库中的UTC时间实际上就是北京时间，只是格式问题
+                          const utcMatch = booking.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                          if (utcMatch) {
+                            const [, year, month, day, hour, minute] = utcMatch;
+                            return `${year}-${month}-${day} ${hour}:${minute}`;
+                          }
+                          
+                          // 备用方案
+                          return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                        } catch (error) {
+                          console.error('时间格式化错误:', error);
+                          return booking.created_at;
+                        }
+                      })()}</div>
                     </div>
                     <Badge variant="secondary">已过期</Badge>
                   </div>
@@ -737,14 +758,7 @@ export default function MyBookingsPage() {
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <div
-                            className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
-                            onClick={() => {
-                              console.log('参会人员点击 已取消', booking.id);
-                              console.log('参会人员:', booking.booking_users);
-                              console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
-                            }}
-                          >
+                          <div>
                             <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
                           </div>
                         </div>
@@ -856,7 +870,22 @@ export default function MyBookingsPage() {
                           </div>
                         </div>
 
-                        <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
+                        <div className="text-xs text-muted-foreground">预定时间: {(() => {
+                          try {
+                            // 关键修复：数据库中的UTC时间实际上就是北京时间，只是格式问题
+                            const utcMatch = booking.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                            if (utcMatch) {
+                              const [, year, month, day, hour, minute] = utcMatch;
+                              return `${year}-${month}-${day} ${hour}:${minute}`;
+                            }
+                            
+                            // 备用方案
+                            return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                          } catch (error) {
+                            console.error('时间格式化错误:', error);
+                            return booking.created_at;
+                          }
+                        })()}</div>
                       </div>
                       <Badge variant="secondary">已取消</Badge>
                     </div>

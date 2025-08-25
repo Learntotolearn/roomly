@@ -311,7 +311,19 @@ export default function AdminRoomsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {format(new Date(room.created_at), 'yyyy-MM-dd HH:mm')}
+                    {(() => {
+                      try {
+                        // 修复时间显示：直接解析时间字符串，避免时区转换问题
+                        const utcMatch = room.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                        if (utcMatch) {
+                          const [, year, month, day, hour, minute] = utcMatch;
+                          return `${year}-${month}-${day} ${hour}:${minute}`;
+                        }
+                        return room.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                      } catch (error) {
+                        return room.created_at;
+                      }
+                    })()}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

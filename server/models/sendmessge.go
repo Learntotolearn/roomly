@@ -104,16 +104,9 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 		if summaryContent != "" {
 			summarySection = fmt.Sprintf("\n\n### **会议纪要内容**\n%s", summaryContent)
 		}
-
-		msg = fmt.Sprintf(`## 📋  会议纪要通知
-### **会议纪要已生成，请查看**
-
-- **会议室**：%s
-- **会议时间**：%s
-- **参会人员**：%s
-- **会议发起人**：%s%s
-
-> 请及时查看会议纪要内容，如有疑问请联系会议发起人。`, roomName, meetingTime, attendees, nickname, summarySection)
+		
+		msg = fmt.Sprintf(`%s
+`, summarySection)
 	default:
 		// 添加预定理由到会议提醒消息中
 		reasonSection := ""

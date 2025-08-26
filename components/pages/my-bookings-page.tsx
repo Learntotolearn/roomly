@@ -1,14 +1,14 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { memberApi, bookingApi, userApi } from '@/lib/api';
+import { memberApi, bookingApi, userApi, recordingGroupApi } from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw, Edit } from 'lucide-react';
 import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon } from '@/components/ui/icons';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { format, parseISO } from 'date-fns';
@@ -44,6 +44,10 @@ interface Recording {
 export default function MyBookingsPage() {
   const { currentMember } = useAppContext();
   const queryClient = useQueryClient();
+  const ENABLE_SUMMARY_API ='true';
+  const RECORDSRV_BASE = process.env.NEXT_PUBLIC_RECORDSRV_BASE || 'https://recordsrv-server.keli.vip';
+  const RECORDSRV_USERNAME = process.env.NEXT_PUBLIC_RECORDSRV_USERNAME || 'admin';
+  const RECORDSRV_PASSWORD = process.env.NEXT_PUBLIC_RECORDSRV_PASSWORD || 'admin';
 
   // 强制刷新计数器
   const [refreshCounter, setRefreshCounter] = useState(0);
@@ -53,6 +57,18 @@ export default function MyBookingsPage() {
   // 取消预定弹窗
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBookingId, setCancelBookingId] = useState<number | null>(null);
+  
+  // 会议纪要弹窗
+  const [meetingSummaryDialogOpen, setMeetingSummaryDialogOpen] = useState(false);
+  const [currentBooking, setCurrentBooking] = useState<Booking | null>(null);
+  const [meetingSummary, setMeetingSummary] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  
+  // 编辑分析弹窗
+  const [editAnalysisDialogOpen, setEditAnalysisDialogOpen] = useState(false);
+  const [editingRecording, setEditingRecording] = useState<Recording | null>(null);
+  const [editingAnalysis, setEditingAnalysis] = useState('');
+  const [isUpdatingAnalysis, setIsUpdatingAnalysis] = useState(false);
 
   // 列表状态
   const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
@@ -94,10 +110,10 @@ export default function MyBookingsPage() {
   };
 
   const loginAndGetToken = async () => {
-    const res = await fetch('https://recordsrv-server.keli.vip/api/token/', {
+    const res = await fetch(`${RECORDSRV_BASE}/api/token/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'admin' }),
+      body: JSON.stringify({ username: RECORDSRV_USERNAME, password: RECORDSRV_PASSWORD }),
     });
     const data = await res.json();
     return data.access;
@@ -106,7 +122,7 @@ export default function MyBookingsPage() {
   const fetchRecordings = async (bookingId: number, title: string) => {
     try {
       const token = await loginAndGetToken();
-      const res = await fetch(`https://recordsrv-server.keli.vip/recordings/Recording/?title=${encodeURIComponent(title)}`, {
+      const res = await fetch(`${RECORDSRV_BASE}/recordings/Recording/?title=${encodeURIComponent(title)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('获取录音信息失败');
@@ -195,7 +211,7 @@ export default function MyBookingsPage() {
       
       console.log('开始上传录音:', { title, blobSize: blob.size });
       
-      const res = await fetch('https://recordsrv-server.keli.vip/recordings/Recording/', {
+      const res = await fetch(`${RECORDSRV_BASE}/recordings/Recording/`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -235,7 +251,7 @@ export default function MyBookingsPage() {
   const analyzeRecording = async (id: number) => {
     try {
       const token = await loginAndGetToken();
-      await fetch(`https://recordsrv-server.keli.vip/recordings/Recording/${id}/analyze/`, {
+      await fetch(`${RECORDSRV_BASE}/recordings/Recording/${id}/analyze/`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -248,7 +264,7 @@ export default function MyBookingsPage() {
   const fetchGroupAnalysisByTitle = async (title: string): Promise<string | null> => {
     try {
       const token = await loginAndGetToken();
-      const url = `https://recordsrv-server.keli.vip/recordings/RecordingGroup/?name=${encodeURIComponent(title)}`;
+      const url = `${RECORDSRV_BASE}/recordings/RecordingGroup/?name=${encodeURIComponent(title)}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
@@ -276,7 +292,7 @@ export default function MyBookingsPage() {
         const token = await loginAndGetToken();
 
         // 向指定接口发送分析请求（按标题）
-        await fetch('https://recordsrv-server.keli.vip/recordings/analyze_recording/', {
+        await fetch(`${RECORDSRV_BASE}/recordings/analyze_recording/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ title }),
@@ -322,7 +338,7 @@ export default function MyBookingsPage() {
         return;
       }
       
-      // 生成会议纪要通知内容（固定模版 + 可选AI摘要）
+      // 生成会议纪要通知内容（智能选择：若AI已是完整纪要，则直接发送AI内容）
       const rs = getRecordingState(targetBooking.id);
       const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
       const title = `${formatDate(targetBooking.date)}-${targetBooking.start_time}-${targetBooking.end_time}`;
@@ -335,35 +351,41 @@ export default function MyBookingsPage() {
       const initiator = targetBooking.member?.name || '';
       const initiatorRole = targetBooking.member?.is_admin ? '管理员' : '成员';
       const dateStr = `${formatDate(targetBooking.date)} ${targetBooking.start_time}-${targetBooking.end_time}`;
-      const summaryBlock = aiSummary && aiSummary.length > 0 ? aiSummary : '暂无会议纪要内容';
+      const cleanThink = (txt: string) => txt
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .trim();
+      const cleanedAi = aiSummary ? cleanThink(aiSummary) : '';
+      const looksLikeFullMinutes = /(^#\s*会议纪要)|(^\*\*会议信息\*\*)/m.test(cleanedAi);
+
+      // 只发送“会议纪要”主体内容
+      const summaryContent = (cleanedAi && looksLikeFullMinutes)
+        ? cleanedAi
+        : [
+            '# 会议纪要',
+            '',
+            '**会议信息**',
+            `- 会议室：${targetBooking.room?.name || ''}`,
+            `- 会议时间：${dateStr}`,
+            `- 参会人员：${attendeeNames}`,
+            `- 会议发起人：${initiator}${initiator ? ` (${initiatorRole})` : ''}`,
+            `- 预定理由：${targetBooking.reason || ''}`,
+            '',
+            '**会议纪要内容**',
+            (cleanedAi && cleanedAi.length > 0) ? cleanedAi : '暂无会议纪要内容',
+          ].join('\n');
       
-      // 构建会议纪要内容
-      const summaryContent = [
-        '📋 会议纪要通知',
-        '会议纪要已生成，请查看',
-        `会议室：${targetBooking.room?.name || ''}`,
-        `会议时间：${dateStr}`,
-        `参会人员：${attendeeNames}`,
-        `会议发起人：${initiator}${initiator ? ` (${initiatorRole})` : ''}`,
-        '会议纪要内容',
-        summaryBlock,
-        '',
-        '请及时查看会议纪要内容，如有疑问请联系会议发起人。',
-      ].join('\n');
-      
-      // 组装时间段
+      // 组装时间段（不再传给通知接口，避免服务端加头部模板）
       const timeSlots = [targetBooking.start_time, targetBooking.end_time];
       
       // 显示发送中提示
       toast.info(`正在发送会议纪要通知给 ${userIds.length} 位参会人员...`);
       
       // 发送会议纪要通知（使用新的 POST 接口）
+      // 仅发送正文，去掉 date/timeSlots/roomName 以避免服务端自动加“会议纪要通知”头部
       const result = await userApi.sendMeetingSummary(
         userIds,
-        summaryContent,
-        targetBooking.date,
-        timeSlots,
-        targetBooking.room?.name
+        summaryContent
       );
       
       console.log('会议纪要通知发送成功:', result);
@@ -470,6 +492,183 @@ export default function MyBookingsPage() {
   const handleCancelBooking = (bookingId: number) => { setCancelBookingId(bookingId); setCancelDialogOpen(true); };
   const handleConfirmCancel = (cancelReason: string) => { if (cancelBookingId) cancelBookingMutation.mutate({ bookingId: cancelBookingId, cancelReason }); };
 
+  // 会议纪要相关函数
+  const handleOpenMeetingSummary = async (booking: Booking) => {
+    setCurrentBooking(booking);
+    setMeetingSummary('');
+    setMeetingSummaryDialogOpen(true);
+    
+    // 加载录音分组内容（不再调用 bookings/{id}/summary 接口）
+    if (ENABLE_SUMMARY_API) {
+      try {
+        // 1) 同步绑定 RecordingGroup 的 Id（按标题查询）并预填 analysis
+        const title = `${formatDate(booking.date)}-${booking.start_time}-${booking.end_time}`;
+        const token = await loginAndGetToken();
+        const list = await recordingGroupApi.getByName(title, token);
+        const groupItem = Array.isArray(list) && list.length > 0 ? list[0] : null;
+        if (groupItem) {
+          const groupId = groupItem.id ?? groupItem.Id;
+          const rawMap = (typeof window !== 'undefined') ? localStorage.getItem('recordingGroupIdMap') : null;
+          const idMap: Record<string, number> = rawMap ? JSON.parse(rawMap) : {};
+          idMap[String(booking.id)] = Number(groupId);
+          if (typeof window !== 'undefined') localStorage.setItem('recordingGroupIdMap', JSON.stringify(idMap));
+          // 预填外部 analysis
+          if (groupItem.analysis) setMeetingSummary(String(groupItem.analysis));
+        }
+
+        // 2) 若仍为空，则自动生成模板（无需手动点击“生成模板”）
+        setTimeout(() => {
+          setMeetingSummary(ms => {
+            if (!ms || ms.trim().length === 0) {
+              // 仅当内容仍为空时才自动生成
+              handleGenerateSummary();
+            }
+            return ms;
+          });
+        }, 0);
+      } catch (error) {
+        console.log('没有找到已有的会议纪要或加载失败:', error);
+      }
+    }
+  };
+
+  // 修改录音分析内容
+  const handleEditAnalysis = (recording: Recording) => {
+    setEditingRecording(recording);
+    setEditingAnalysis(recording.analysis || '');
+    setEditAnalysisDialogOpen(true);
+  };
+
+  // 保存分析内容
+  const handleSaveAnalysis = async () => {
+    if (!editingRecording) return;
+    
+    setIsUpdatingAnalysis(true);
+    try {
+      toast.success('录音分析内容已更新');
+      setEditAnalysisDialogOpen(false);
+      
+      // 刷新录音列表以显示更新后的内容
+      const title = `${formatDate(currentBooking?.date || '')}-${currentBooking?.start_time || ''}-${currentBooking?.end_time || ''}`;
+      if (currentBooking) {
+        await fetchRecordings(currentBooking.id, title);
+      }
+      
+    } catch (error) {
+      console.error('更新录音分析失败:', error);
+      toast.error('更新录音分析失败，请稍后重试');
+    } finally {
+      setIsUpdatingAnalysis(false);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!currentBooking) return;
+    
+    setIsGeneratingSummary(true);
+    try {
+      const title = `${formatDate(currentBooking.date)}-${currentBooking.start_time}-${currentBooking.end_time}`;
+      
+      // 获取AI分析结果
+      const aiAnalysis = await fetchGroupAnalysisByTitle(title);
+      
+      // 构建会议纪要内容
+      const attendeeNames = (currentBooking.booking_users?.map(u => u.nickname).join('、')) || '';
+      const dateStr = `${formatDate(currentBooking.date)} ${currentBooking.start_time}-${currentBooking.end_time}`;
+      
+      let summaryContent = `# 会议纪要\n\n`;
+      summaryContent += `**会议信息**\n`;
+      summaryContent += `- 会议室：${currentBooking.room?.name || ''}\n`;
+      summaryContent += `- 会议时间：${dateStr}\n`;
+      summaryContent += `- 参会人员：${attendeeNames}\n`;
+      summaryContent += `- 会议发起xxx人：${currentBooking.member?.name || ''}\n`;
+      summaryContent += `- 预定理由：${currentBooking.reason}\n\n`;
+      
+      if (aiAnalysis) {
+        summaryContent += `**AI分析摘要**\n${aiAnalysis}\n\n`;
+      }
+      
+      summaryContent += `**会议要点**\n`;
+      summaryContent += `1. \n`;
+      summaryContent += `2. \n`;
+      summaryContent += `3. \n\n`;
+      
+      summaryContent += `**后续行动**\n`;
+      summaryContent += `- [ ] \n`;
+      summaryContent += `- [ ] \n\n`;
+      
+      summaryContent += `**备注**\n`;
+      summaryContent += `\n`;
+      
+      setMeetingSummary(summaryContent);
+      toast.success('会议纪要模板已生成');
+    } catch (error) {
+      console.error('生成会议纪要失败:', error);
+      toast.error('生成会议纪要失败，请稍后重试');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const handleSaveSummary = async () => {
+    console.log('handleSaveSummary:start', {
+      hasBooking: !!currentBooking,
+      meetingSummaryLength: meetingSummary?.trim().length ?? 0,
+      ENABLE_SUMMARY_API,
+    });
+    if (!currentBooking) {
+      toast.error('未选中预定，无法保存');
+      return;
+    }
+    if (!meetingSummary.trim()) {
+      toast.error('请先输入会议纪要内容');
+      return;
+    }
+    
+    try {
+      if (ENABLE_SUMMARY_API) {
+        // 保存到录音分组：优先使用已知 Id；否则按标题 upsert
+        const title = `${formatDate(currentBooking.date)}-${currentBooking.start_time}-${currentBooking.end_time}`;
+        const token = await loginAndGetToken();
+        console.log('handleSaveSummary:token_acquired', !!token, 'title=', title);
+
+        // 读取并维护本地绑定关系（booking.id -> RecordingGroup.Id）
+        const rawMap = (typeof window !== 'undefined') ? localStorage.getItem('recordingGroupIdMap') : null;
+        const idMap: Record<string, number> = rawMap ? JSON.parse(rawMap) : {};
+        const boundId = idMap[String(currentBooking.id)];
+
+        let res: any;
+        if (boundId) {
+          console.log('Using existing RecordingGroup id:', boundId);
+          // 仅部分更新，避免触发文件字段校验
+          res = await recordingGroupApi.partialUpdate(boundId, { analysis: meetingSummary }, token);
+        } else {
+          // 按名称 upsert（PATCH 或 CREATE），仅传 analysis 字段
+          res = await recordingGroupApi.upsertByName(title, { analysis: meetingSummary }, token);
+        }
+
+        const savedId = (res && (res.id ?? res.Id)) ?? null;
+        if (savedId) {
+          idMap[String(currentBooking.id)] = Number(savedId);
+          if (typeof window !== 'undefined') localStorage.setItem('recordingGroupIdMap', JSON.stringify(idMap));
+        }
+
+        console.log('RecordingGroup saved id:', savedId, 'title:', title);
+        toast.success(savedId ? `会议纪要已保存（ID: ${savedId}）` : '会议纪要已保存');
+      } else {
+        // 未开启后端保存时，仅本地提示成功
+        console.warn('handleSaveSummary:ENABLE_SUMMARY_API=false，未调用后端，bookingId=', currentBooking.id);
+        console.log(currentBooking.id, meetingSummary);
+        toast.info('未开启后端保存，已生成本地内容');
+      }
+      setMeetingSummaryDialogOpen(false);
+    } catch (error) {
+      console.error('保存会议纪要失败:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`保存会议纪要失败：${msg}`);
+    }
+  };
+
   const formatDate = (s: string) => { try { return format(parseISO(s), 'yyyy年MM月dd日'); } catch { return s; } };
   const formatTime = (start: string, end: string) => (end === '00:00' ? `${start} - 24:00` : `${start} - ${end}`);
   const formatUploadTime = (t?: string | null) => {
@@ -525,19 +724,26 @@ export default function MyBookingsPage() {
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <div
-                            className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
-                            onClick={() => {
-                              console.log('参会人员点击 有效预定', booking.id);
-                              console.log('参会人员:', booking.booking_users);
-                              console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
-                            }}
-                          >
-                            <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
-                          </div>
+                          <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
                         </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
-                        <div className="text-sm text-muted-foreground"><strong>AI分析:</strong> {selected?.analysis ? selected.analysis : '-'}</div>
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <strong>语音识别:</strong> 
+                            <span>{selected?.analysis ? selected.analysis : '-'}</span>
+                            {selected && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditAnalysis(selected)}
+                                className="h-6 px-2 text-xs"
+                              >
+                                <Edit className="w-3 h-3 mr-1" />
+                                编辑
+                              </Button>
+                            )}
+                          </div>
+                        </div>
 
                         <div className="text-sm text-muted-foreground">
                           <strong>录音功能: {title}</strong>
@@ -591,6 +797,20 @@ export default function MyBookingsPage() {
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => handleOpenMeetingSummary(booking)}
+                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                    >
+                                      <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>会议纪要</TooltipContent>
                                 </Tooltip>
 
                                 <Tooltip>
@@ -687,21 +907,29 @@ export default function MyBookingsPage() {
                         <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        <div
-                          className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
-                          onClick={() => {
-                            console.log('参会人员点击 已过期', booking.id);
-                            console.log('参会人员:', booking.booking_users);
-                            console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
-                          }}
-                        >
-                          <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
-                        </div>
+                        <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
                       </div>
                       <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                       <div className="text-xs text-muted-foreground">预定时间: {format(parseISO(booking.created_at), 'yyyy-MM-dd HH:mm')}</div>
                     </div>
-                    <Badge variant="secondary">已过期</Badge>
+                    {/* 操作区：已过期也允许编辑会议纪要 */}
+                    <div className="flex items-center space-x-2 ml-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              onClick={() => handleOpenMeetingSummary(booking)}
+                              className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                            >
+                              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>会议纪要</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -737,20 +965,27 @@ export default function MyBookingsPage() {
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <div
-                            className="inline-flex items-center px-1 -mx-1 rounded cursor-pointer hover:bg-gray-100"
-                            onClick={() => {
-                              console.log('参会人员点击 已取消', booking.id);
-                              console.log('参会人员:', booking.booking_users);
-                              console.log('参会人员昵称:', booking.booking_users?.map(u => u.nickname) ?? []);
-                            }}
-                          >
-                            <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
-                          </div>
+                          <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
                         </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                         {booking.cancel_reason && (<div className="text-sm text-muted-foreground"><strong>取消理由:</strong> {booking.cancel_reason}</div>)}
-                        <div className="text-sm text-muted-foreground"><strong>AI分析:</strong> {selected?.analysis ? selected.analysis : '-'}</div>
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <strong>AI分析:</strong> 
+                            <span>{selected?.analysis ? selected.analysis : '-'}</span>
+                            {selected && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditAnalysis(selected)}
+                                className="h-6 px-2 text-xs"
+                              >
+                                <Edit className="w-3 h-3 mr-1" />
+                                编辑
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                         
                         <div className="text-sm text-muted-foreground">
                           <strong>录音功能: {title}</strong>
@@ -804,6 +1039,20 @@ export default function MyBookingsPage() {
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={() => handleOpenMeetingSummary(booking)}
+                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                    >
+                                      <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>会议纪要</TooltipContent>
                                 </Tooltip>
 
                                 <Tooltip>
@@ -883,6 +1132,121 @@ export default function MyBookingsPage() {
 
       {/* 取消预定弹窗 */}
       <CancelBookingDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen} onConfirm={handleConfirmCancel} loading={cancelBookingMutation.isPending} />
+
+      {/* 会议纪要对话框 */}
+      {meetingSummaryDialogOpen && currentBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl h-3/4 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">会议纪要 - {currentBooking.room?.name}</h2>
+              <button
+                onClick={() => setMeetingSummaryDialogOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex gap-4 mb-4">
+              <Button
+                onClick={handleGenerateSummary}
+                disabled={isGeneratingSummary}
+                className="flex items-center gap-2"
+              >
+                {isGeneratingSummary ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                )}
+                {isGeneratingSummary ? '生成中...' : '生成模板'}
+              </Button>
+              
+              <Button
+                onClick={handleSaveSummary}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                保存
+              </Button>
+            </div>
+            
+            <div className="flex-1">
+              <textarea
+                value={meetingSummary}
+                onChange={(e) => setMeetingSummary(e.target.value)}
+                placeholder="请输入会议纪要内容..."
+                className="w-full h-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                style={{ fontFamily: 'monospace' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑分析对话框 */}
+      {editAnalysisDialogOpen && editingRecording && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-3/4 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">编辑录音记录分析</h2>
+              <button
+                onClick={() => setEditAnalysisDialogOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                录音标题: {editingRecording.title}
+              </p>
+            </div>
+            
+            <div className="flex-1 mb-4">
+              <textarea
+                value={editingAnalysis}
+                onChange={(e) => setEditingAnalysis(e.target.value)}
+                placeholder="请输入录音分析内容..."
+                className="w-full h-full min-h-48 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                style={{ fontFamily: 'monospace' }}
+              />
+            </div>
+            
+            <div className="flex gap-4 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setEditAnalysisDialogOpen(false)}
+              >
+                取消
+              </Button>
+              <Button
+                onClick={handleSaveAnalysis}
+                disabled={isUpdatingAnalysis}
+                className="flex items-center gap-2"
+              >
+                {isUpdatingAnalysis ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {isUpdatingAnalysis ? '保存中...' : '保存'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

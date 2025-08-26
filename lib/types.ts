@@ -29,6 +29,7 @@ export interface Booking {
   reason: string;
   cancel_reason?: string; // 取消理由
   status: 'active' | 'cancelled' | 'expired';
+  summary_content?: string; // 会议纪要内容
   created_at: string;
   updated_at: string;
   room: Room;

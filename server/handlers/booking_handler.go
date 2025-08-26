@@ -517,3 +517,47 @@ func isBookingExpired(booking models.Booking) bool {
 	}
 	return booking.Status == "active" && endDateTime.Before(time.Now())
 }
+
+// 保存会议纪要
+func SaveMeetingSummary(c *gin.Context) {
+	bookingID := c.Param("id")
+	
+	// 解析请求体
+	var req struct {
+		SummaryContent string `json:"summary_content" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	
+	// 检查预定是否存在
+	var booking models.Booking
+	if err := database.DB.First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+	
+	// 更新预定的会议纪要字段
+	if err := database.DB.Model(&booking).Update("summary_content", req.SummaryContent).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save meeting summary"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Meeting summary saved successfully"})
+}
+
+// 获取会议纪要
+func GetMeetingSummary(c *gin.Context) {
+	bookingID := c.Param("id")
+	
+	// 检查预定是否存在
+	var booking models.Booking
+	if err := database.DB.First(&booking, bookingID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"summary_content": booking.SummaryContent})
+}

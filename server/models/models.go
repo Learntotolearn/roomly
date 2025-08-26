@@ -37,6 +37,7 @@ type Booking struct {
 	Reason       string    `gorm:"not null" json:"reason"`
 	CancelReason string    `json:"cancel_reason"`                // 取消理由
 	Status       string    `gorm:"default:active" json:"status"` // active, cancelled
+	SummaryContent string  `json:"summary_content"`              // 会议纪要内容
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 

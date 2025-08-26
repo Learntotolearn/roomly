@@ -48,6 +48,57 @@ func main() {
 	}
 }
 
+// 计算预订的结束时间
+func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
+	// 解析预定日期
+	bookingDate, err := time.Parse("2006-01-02", booking.Date)
+	if err != nil {
+		log.Printf("解析日期失败: %s, 错误: %v", booking.Date, err)
+		return time.Time{}, err
+	}
+
+	// 处理结束时间，特别是24:00和跨日00:00的情况
+	var endTime time.Time
+	if booking.EndTime == "24:00" {
+		// 24:00表示当天的24点，即次日的00:00:00
+		endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
+			0, 0, 0, 0, bookingDate.Location())
+	} else if booking.EndTime == "00:00" {
+		// 对于00:00结束时间，使用逻辑推理判断是否跨日
+		// 解析开始时间
+		startTimeStr := booking.StartTime + ":00"
+		parsedStartTime, err := time.Parse("15:04:05", startTimeStr)
+		if err != nil {
+			log.Printf("解析开始时间失败: %s, 错误: %v", booking.StartTime, err)
+			return time.Time{}, err
+		}
+
+		// 逻辑推理：如果开始时间不是00:00，且结束时间是00:00，则认为是跨日预订
+		if parsedStartTime.Hour() > 0 || parsedStartTime.Minute() > 0 {
+			// 跨日：结束时间是次日的00:00:00
+			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
+				0, 0, 0, 0, bookingDate.Location())
+		} else {
+			// 同日：00:00-00:00的特殊情况（理论上不应该存在）
+			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
+				0, 0, 0, 0, bookingDate.Location())
+		}
+	} else {
+		// 解析结束时间
+		endTimeStr := booking.EndTime + ":00"
+		parsedTime, err := time.Parse("15:04:05", endTimeStr)
+		if err != nil {
+			log.Printf("解析时间失败: %s, 错误: %v", booking.EndTime, err)
+			return time.Time{}, err
+		}
+		// 组合日期和时间
+		endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
+			parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, bookingDate.Location())
+	}
+
+	return endTime, nil
+}
+
 // 修复错误标记为过期的预订
 func FixWronglyExpiredBookings() {
 	now := time.Now()
@@ -60,50 +111,9 @@ func FixWronglyExpiredBookings() {
 
 	fixedCount := 0
 	for _, booking := range bookings {
-		// 解析预定日期
-		bookingDate, err := time.Parse("2006-01-02", booking.Date)
+		endTime, err := calculateBookingEndTime(booking)
 		if err != nil {
-			log.Printf("解析日期失败: %s, 错误: %v", booking.Date, err)
 			continue
-		}
-
-		// 处理结束时间，特别是24:00和跨日00:00的情况
-		var endTime time.Time
-		if booking.EndTime == "24:00" {
-			// 24:00表示当天的24点，即次日的00:00:00
-			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
-				0, 0, 0, 0, bookingDate.Location())
-		} else if booking.EndTime == "00:00" {
-			// 对于00:00结束时间，使用逻辑推理判断是否跨日
-			// 解析开始时间
-			startTimeStr := booking.StartTime + ":00"
-			parsedStartTime, err := time.Parse("15:04:05", startTimeStr)
-			if err != nil {
-				log.Printf("解析开始时间失败: %s, 错误: %v", booking.StartTime, err)
-				continue
-			}
-
-			// 逻辑推理：如果开始时间不是00:00，且结束时间是00:00，则认为是跨日预订
-			if parsedStartTime.Hour() > 0 || parsedStartTime.Minute() > 0 {
-				// 跨日：结束时间是次日的00:00:00
-				endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
-					0, 0, 0, 0, bookingDate.Location())
-			} else {
-				// 同日：00:00-00:00的特殊情况（理论上不应该存在）
-				endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
-					0, 0, 0, 0, bookingDate.Location())
-			}
-		} else {
-			// 解析结束时间
-			endTimeStr := booking.EndTime + ":00"
-			parsedTime, err := time.Parse("15:04:05", endTimeStr)
-			if err != nil {
-				log.Printf("解析时间失败: %s, 错误: %v", booking.EndTime, err)
-				continue
-			}
-			// 组合日期和时间
-			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
-				parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, bookingDate.Location())
 		}
 
 		// 调试日志
@@ -138,50 +148,9 @@ func UpdateExpiredBookings() {
 
 	expiredCount := 0
 	for _, booking := range activeBookings {
-		// 解析预定日期
-		bookingDate, err := time.Parse("2006-01-02", booking.Date)
+		endTime, err := calculateBookingEndTime(booking)
 		if err != nil {
-			log.Printf("解析日期失败: %s, 错误: %v", booking.Date, err)
 			continue
-		}
-
-		// 处理结束时间，特别是24:00和跨日00:00的情况
-		var endTime time.Time
-		if booking.EndTime == "24:00" {
-			// 24:00表示当天的24点，即次日的00:00:00
-			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
-				0, 0, 0, 0, bookingDate.Location())
-		} else if booking.EndTime == "00:00" {
-			// 对于00:00结束时间，使用逻辑推理判断是否跨日
-			// 解析开始时间
-			startTimeStr := booking.StartTime + ":00"
-			parsedStartTime, err := time.Parse("15:04:05", startTimeStr)
-			if err != nil {
-				log.Printf("解析开始时间失败: %s, 错误: %v", booking.StartTime, err)
-				continue
-			}
-
-			// 逻辑推理：如果开始时间不是00:00，且结束时间是00:00，则认为是跨日预订
-			if parsedStartTime.Hour() > 0 || parsedStartTime.Minute() > 0 {
-				// 跨日：结束时间是次日的00:00:00
-				endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day()+1,
-					0, 0, 0, 0, bookingDate.Location())
-			} else {
-				// 同日：00:00-00:00的特殊情况（理论上不应该存在）
-				endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
-					0, 0, 0, 0, bookingDate.Location())
-			}
-		} else {
-			// 解析结束时间
-			endTimeStr := booking.EndTime + ":00"
-			parsedTime, err := time.Parse("15:04:05", endTimeStr)
-			if err != nil {
-				log.Printf("解析时间失败: %s, 错误: %v", booking.EndTime, err)
-				continue
-			}
-			// 组合日期和时间
-			endTime = time.Date(bookingDate.Year(), bookingDate.Month(), bookingDate.Day(),
-				parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, bookingDate.Location())
 		}
 
 		// 调试日志

@@ -515,7 +515,20 @@ export default function AdminBookingsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {format(parseISO(booking.created_at || ''), 'yyyy-MM-dd HH:mm')}
+                    {(() => {
+                      try {
+                        // 修复时间显示：直接解析时间字符串，避免时区转换问题
+                        const createdAt = booking.created_at || '';
+                        const utcMatch = createdAt.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                        if (utcMatch) {
+                          const [, year, month, day, hour, minute] = utcMatch;
+                          return `${year}-${month}-${day} ${hour}:${minute}`;
+                        }
+                        return createdAt.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                      } catch (error) {
+                        return booking.created_at || '';
+                      }
+                    })()}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -627,7 +640,20 @@ export default function AdminBookingsPage() {
                   </div>
                 )}
                 <div>
-                  <strong>创建时间：</strong>{format(parseISO(detail.created_at || ''), 'yyyy-MM-dd HH:mm')}
+                  <strong>创建时间：</strong>{(() => {
+                    try {
+                      // 修复时间显示：直接解析时间字符串，避免时区转换问题
+                      const createdAt = detail.created_at || '';
+                      const utcMatch = createdAt.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                      if (utcMatch) {
+                        const [, year, month, day, hour, minute] = utcMatch;
+                        return `${year}-${month}-${day} ${hour}:${minute}`;
+                      }
+                      return createdAt.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                    } catch (error) {
+                      return detail.created_at || '';
+                    }
+                  })()}
                 </div>
               </div>
             )}

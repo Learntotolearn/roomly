@@ -35,10 +35,10 @@ func main() {
 	// 设置路由
 	r := routes.SetupRoutes()
 
-	// 获取端口，默认为8090
+	// 获取端口，默认为8080
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8090"
+		port = "8080"
 	}
 
 	// 启动服务器
@@ -53,7 +53,6 @@ func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
 	// 解析预定日期
 	bookingDate, err := time.Parse("2006-01-02", booking.Date)
 	if err != nil {
-		log.Printf("解析日期失败: %s, 错误: %v", booking.Date, err)
 		return time.Time{}, err
 	}
 
@@ -69,7 +68,6 @@ func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
 		startTimeStr := booking.StartTime + ":00"
 		parsedStartTime, err := time.Parse("15:04:05", startTimeStr)
 		if err != nil {
-			log.Printf("解析开始时间失败: %s, 错误: %v", booking.StartTime, err)
 			return time.Time{}, err
 		}
 
@@ -88,7 +86,6 @@ func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
 		endTimeStr := booking.EndTime + ":00"
 		parsedTime, err := time.Parse("15:04:05", endTimeStr)
 		if err != nil {
-			log.Printf("解析时间失败: %s, 错误: %v", booking.EndTime, err)
 			return time.Time{}, err
 		}
 		// 组合日期和时间
@@ -102,7 +99,6 @@ func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
 // 修复错误标记为过期的预订
 func FixWronglyExpiredBookings() {
 	now := time.Now()
-	log.Printf("开始修复错误标记的过期预订，当前时间: %s", now.Format("2006-01-02 15:04:05"))
 
 	var bookings []models.Booking
 	database.DB.Model(&models.Booking{}).
@@ -116,30 +112,19 @@ func FixWronglyExpiredBookings() {
 			continue
 		}
 
-		// 调试日志
-		log.Printf("检查已过期预订 ID:%d, 日期:%s, 时间:%s-%s, 结束时间:%s, 当前时间:%s, 是否应该过期:%v",
-			booking.ID, booking.Date, booking.StartTime, booking.EndTime,
-			endTime.Format("2006-01-02 15:04:05"), now.Format("2006-01-02 15:04:05"),
-			endTime.Before(now))
-
 		// 如果实际上还没过期，则修复状态
 		if endTime.After(now) {
-			log.Printf("修复预订状态为active: ID:%d, 日期:%s, 时间:%s-%s, 结束时间:%s",
-				booking.ID, booking.Date, booking.StartTime, booking.EndTime, endTime.Format("2006-01-02 15:04:05"))
-
 			booking.Status = "active"
 			database.DB.Save(&booking)
 			fixedCount++
 		}
 	}
 
-	log.Printf("修复完成，共修复了 %d 个预订", fixedCount)
 }
 
 // 定时任务：将已过期的active预定状态更新为expired
 func UpdateExpiredBookings() {
 	now := time.Now()
-	log.Printf("定时任务开始检查过期预订，当前时间: %s", now.Format("2006-01-02 15:04:05"))
 
 	var activeBookings []models.Booking
 	database.DB.Model(&models.Booking{}).
@@ -153,20 +138,12 @@ func UpdateExpiredBookings() {
 			continue
 		}
 
-		// 调试日志
-		log.Printf("检查预订 ID:%d, 日期:%s, 时间:%s-%s, 结束时间:%s, 当前时间:%s, 是否过期:%v",
-			booking.ID, booking.Date, booking.StartTime, booking.EndTime,
-			endTime.Format("2006-01-02 15:04:05"), now.Format("2006-01-02 15:04:05"),
-			endTime.Before(now))
-
 		// 检查是否已过期
 		if endTime.Before(now) {
-			log.Printf("标记预订为过期: ID:%d", booking.ID)
 			booking.Status = "expired"
 			database.DB.Save(&booking)
 			expiredCount++
 		}
 	}
 
-	log.Printf("定时任务完成，共标记 %d 个预订为过期", expiredCount)
 }

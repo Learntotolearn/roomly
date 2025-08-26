@@ -128,8 +128,6 @@ export default function MyBookingsPage() {
       if (!res.ok) throw new Error('获取录音信息失败');
       const data: Recording[] = await res.json();
 
-      console.log('获取到的原始录音数据:', data);
-
       const clean = data.map(r => {
         // 使用类型断言处理服务器返回的数据格式
         const serverData = r as any;
@@ -155,8 +153,6 @@ export default function MyBookingsPage() {
       // 按上传时间排序
       uniqueList.sort((a, b) => new Date(b.upload_time).getTime() - new Date(a.upload_time).getTime());
 
-      console.log('处理后的录音列表:', uniqueList.map(r => ({ id: r.id, title: r.title, upload_time: r.upload_time })));
-
       const currentSelectedId = recordingStates[bookingId]?.selectedId ?? null;
       const keep = currentSelectedId !== null && uniqueList.some(r => r.id === currentSelectedId);
       const newSelectedId = keep ? currentSelectedId : (uniqueList[0]?.id ?? null);
@@ -180,7 +176,6 @@ export default function MyBookingsPage() {
   const handleSelectValueChange = (bookingId: number, value: string) => {
     // 处理无效的 value
     if (!value || value === 'undefined' || value === '__none__') {
-      console.log('选择录音: 无效值，重置选择');
       updateRecordingState(bookingId, { selectedId: null, audioURL: null });
       return;
     }
@@ -194,7 +189,6 @@ export default function MyBookingsPage() {
     const current = getRecordingState(bookingId);
     const found = current.recordings.find(r => r.id === id);
     if (found) {
-      console.log('选择录音:', { bookingId, selectedId: id, audioURL: found.audio_file });
       updateRecordingState(bookingId, { selectedId: id, audioURL: found.audio_file });
     } else {
       console.error('未找到录音:', { bookingId, value, id, recordings: current.recordings });
@@ -209,7 +203,6 @@ export default function MyBookingsPage() {
       formData.append('title', title);
       formData.append('audio_file', blob, `recording-${Date.now()}.webm`);
       
-      console.log('开始上传录音:', { title, blobSize: blob.size });
       
       const res = await fetch(`${RECORDSRV_BASE}/recordings/Recording/`, {
         method: 'POST',
@@ -224,7 +217,6 @@ export default function MyBookingsPage() {
       }
       
       const data = await res.json();
-      console.log('录音上传响应:', data);
       
       // 验证响应数据是否包含必要的字段（兼容大小写）
       const serverData = data as any;
@@ -283,7 +275,6 @@ export default function MyBookingsPage() {
   const handleAiAnalyze = async (targetBooking: Booking) => {
     try {
       const title = `${formatDate(targetBooking.date)}-${targetBooking.start_time}-${targetBooking.end_time}`;
-      console.log('AI分析 -> 触发标题:', title);
 
       // 设置分析状态为开始
       updateRecordingState(targetBooking.id, { analyzing: true });
@@ -298,13 +289,11 @@ export default function MyBookingsPage() {
           body: JSON.stringify({ title }),
         });
 
-        console.log('录音分析请求已发送 (按标题)');
 
         // 等待一段时间让分析完成，然后刷新录音列表
         setTimeout(async () => {
           try {
             await fetchRecordings(targetBooking.id, title);
-            console.log('录音分析结果已更新');
           } catch (fetchError) {
             console.error('获取分析结果失败:', fetchError);
           } finally {
@@ -327,8 +316,6 @@ export default function MyBookingsPage() {
 
   const handlePlaneAction = async (targetBooking: Booking) => {
     try {
-      console.log('发送会议纪要 -> 参会人员:', targetBooking.booking_users);
-      console.log('发送会议纪要 -> 参会人员昵称:', targetBooking.booking_users?.map(u => u.nickname) ?? []);
       
       // 获取参会人员ID列表
       const userIds = targetBooking.booking_users?.map(u => u.userid) || [];
@@ -388,7 +375,6 @@ export default function MyBookingsPage() {
         summaryContent
       );
       
-      console.log('会议纪要通知发送成功:', result);
       
       // 成功提示
       toast.success(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
@@ -412,7 +398,6 @@ export default function MyBookingsPage() {
         updateRecordingState(bookingId, { audioURL: url, isRecording: false, uploading: true });
         const created = await uploadRecording(blob, title);
         if (created && created.id) {
-          console.log('录音上传成功:', { id: created.id, title: created.title });
           setRecordingStates(prev => {
             const cur = prev[bookingId] ?? getRecordingState(bookingId);
             return {
@@ -530,7 +515,6 @@ export default function MyBookingsPage() {
           });
         }, 0);
       } catch (error) {
-        console.log('没有找到已有的会议纪要或加载失败:', error);
       }
     }
   };
@@ -614,11 +598,6 @@ export default function MyBookingsPage() {
   };
 
   const handleSaveSummary = async () => {
-    console.log('handleSaveSummary:start', {
-      hasBooking: !!currentBooking,
-      meetingSummaryLength: meetingSummary?.trim().length ?? 0,
-      ENABLE_SUMMARY_API,
-    });
     if (!currentBooking) {
       toast.error('未选中预定，无法保存');
       return;
@@ -633,7 +612,6 @@ export default function MyBookingsPage() {
         // 保存到录音分组：优先使用已知 Id；否则按标题 upsert
         const title = `${formatDate(currentBooking.date)}-${currentBooking.start_time}-${currentBooking.end_time}`;
         const token = await loginAndGetToken();
-        console.log('handleSaveSummary:token_acquired', !!token, 'title=', title);
 
         // 读取并维护本地绑定关系（booking.id -> RecordingGroup.Id）
         const rawMap = (typeof window !== 'undefined') ? localStorage.getItem('recordingGroupIdMap') : null;
@@ -642,7 +620,6 @@ export default function MyBookingsPage() {
 
         let res: any;
         if (boundId) {
-          console.log('Using existing RecordingGroup id:', boundId);
           // 仅部分更新，避免触发文件字段校验
           res = await recordingGroupApi.partialUpdate(boundId, { analysis: meetingSummary }, token);
         } else {
@@ -656,12 +633,9 @@ export default function MyBookingsPage() {
           if (typeof window !== 'undefined') localStorage.setItem('recordingGroupIdMap', JSON.stringify(idMap));
         }
 
-        console.log('RecordingGroup saved id:', savedId, 'title:', title);
         toast.success(savedId ? `会议纪要已保存（ID: ${savedId}）` : '会议纪要已保存');
       } else {
         // 未开启后端保存时，仅本地提示成功
-        console.warn('handleSaveSummary:ENABLE_SUMMARY_API=false，未调用后端，bookingId=', currentBooking.id);
-        console.log(currentBooking.id, meetingSummary);
         toast.info('未开启后端保存，已生成本地内容');
       }
       setMeetingSummaryDialogOpen(false);

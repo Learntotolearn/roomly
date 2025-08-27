@@ -480,7 +480,43 @@ export default function MyBookingsPage() {
   const handleCancelBooking = (bookingId: number) => { setCancelBookingId(bookingId); setCancelDialogOpen(true); };
   const handleConfirmCancel = (cancelReason: string) => { if (cancelBookingId) cancelBookingMutation.mutate({ bookingId: cancelBookingId, cancelReason }); };
 
+  // 检查录音分析状态
+  const checkRecordingAnalysisStatus = async (booking: Booking): Promise<boolean> => {
+    try {
+      const title = `${formatDate(booking.date)}-${booking.start_time}-${booking.end_time}`;
+      const token = await loginAndGetToken();
+      const list = await recordingGroupApi.getByName(title, token);
+      const groupItem = Array.isArray(list) && list.length > 0 ? list[0] : null;
+      
+      if (groupItem && groupItem.status === 'completed') {
+        return true;
+      }
+      
+      // 如果没有找到分组，检查单个录音的分析状态
+      const rs = getRecordingState(booking.id);
+      const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
+      
+      if (selected && selected.analysis) {
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('检查录音分析状态失败:', error);
+      return false;
+    }
+  };
+
   // 会议纪要相关函数
+  const handleOpenMeetingSummaryWithCheck = async (booking: Booking) => {
+    const isCompleted = await checkRecordingAnalysisStatus(booking);
+    if (isCompleted) {
+      handleOpenMeetingSummary(booking);
+    } else {
+      toast.error('录音分析尚未完成，请等待分析完成后再查看会议纪要');
+    }
+  };
+
   const handleOpenMeetingSummary = async (booking: Booking) => {
     setCurrentBooking(booking);
     setMeetingSummary('');
@@ -728,91 +764,95 @@ export default function MyBookingsPage() {
                           <strong>录音功能: {title}</strong>
                           <div className="space-y-4">
                             <TooltipProvider>
-                              <div className="flex gap-4">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => startRecording(booking.id, title)}
-                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                    >
-                                      <MicrophoneIcon size={20} className="text-blue-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>开始录音</TooltipContent>
-                                </Tooltip>
+                              <div className="flex flex-wrap gap-3 sm:gap-4" style={{ maxWidth: '100%' }}>
+                                <div className="flex flex-row gap-3 sm:gap-4 mb-2 flex-wrap">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => startRecording(booking.id, title)}
+                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                      >
+                                        <MicrophoneIcon size={22} className="sm:w-5 sm:h-5 text-blue-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>开始录音</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => stopRecording(booking.id)}
-                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
-                                    >
-                                      <StopIcon size={20} className="text-red-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>结束录音</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => stopRecording(booking.id)}
+                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                      >
+                                        <StopIcon size={22} className="sm:w-5 sm:h-5 text-red-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>结束录音</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
-                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
-                                    >
-                                      <SearchIcon size={20} className="text-gray-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>查询录音</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
+                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                      >
+                                        <SearchIcon size={22} className="sm:w-5 sm:h-5 text-gray-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>查询录音</TooltipContent>
+                                  </Tooltip>
+                                </div>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
-                                      className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                    >
-                                      <AiIcon size={20} className={`${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
-                                      {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
-                                </Tooltip>
+                                <div className="flex gap-3 sm:gap-4 flex-wrap">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
+                                        className={`relative cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                      >
+                                        <AiIcon size={22} className={`sm:w-5 sm:h-5 ${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
+                                        {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => handleOpenMeetingSummary(booking)}
-                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
-                                    >
-                                      <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                      </svg>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>会议纪要</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => handleOpenMeetingSummary(booking)}
+                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                      >
+                                        <svg className="w-5.5 h-5.5 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>会议纪要</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => handlePlaneAction(booking)}
-                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
-                                    >
-                                      <PlaneIcon size={20} className="text-teal-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>发送会议纪要</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => handlePlaneAction(booking)}
+                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                      >
+                                        <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>发送会议纪要</TooltipContent>
+                                  </Tooltip>
+                                </div>
                               </div>
                             </TooltipProvider>
                             {openRecordingBookingId === booking.id && (
-                              <div className="max-w-48">
+                              <div className="max-w-48 md:max-w-48 max-w-36">
                                 <Select
                                   value={rs.selectedId !== null ? String(rs.selectedId) : ""}
                                   onValueChange={v => handleSelectValueChange(booking.id, v)}
                                   disabled={rs.recordings.length === 0}
                                 >
-                                  <SelectTrigger className="w-32 text-xs">
+                                  <SelectTrigger className="w-28 md:w-32 text-xs">
                                     <SelectValue placeholder={rs.recordings.length === 0 ? "暂无录音" : "选择录音"} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -842,7 +882,7 @@ export default function MyBookingsPage() {
                                 <AudioPlayer
                                   src={rs.audioURL}
                                   title="录音回放"
-                                  className="w-full"
+                                  className="w-full max-w-full sm:max-w-xs md:max-w-md"
                                 />
                               </div>
                             )}
@@ -871,8 +911,14 @@ export default function MyBookingsPage() {
                           }
                         })()}</div>
                       </div>
-                      <div className="flex items-center space-x-2 ml-4">
-                        <Button variant="outline" size="sm" onClick={() => handleCancelBooking(booking.id)} disabled={cancelBookingMutation.isPending}><X className="w-4 h-4 mr-1" />取消</Button>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 ml-4">
+                        <Badge 
+                          variant="outline" 
+                          className="cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors"
+                          onClick={() => handleCancelBooking(booking.id)}
+                        >
+                          取消
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -1006,91 +1052,95 @@ export default function MyBookingsPage() {
                           <strong>录音功能: {title}</strong>
                           <div className="space-y-4">
                             <TooltipProvider>
-                              <div className="flex gap-4">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => startRecording(booking.id, title)}
-                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                    >
-                                      <MicrophoneIcon size={20} className="text-blue-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>开始录音</TooltipContent>
-                                </Tooltip>
+                              <div className="flex flex-wrap gap-3 sm:gap-4" style={{ maxWidth: '100%' }}>
+                                <div className="flex flex-row gap-3 sm:gap-4 mb-2 flex-wrap">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => startRecording(booking.id, title)}
+                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                      >
+                                        <MicrophoneIcon size={22} className="sm:w-5 sm:h-5 text-blue-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>开始录音</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => stopRecording(booking.id)}
-                                      className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
-                                    >
-                                      <StopIcon size={20} className="text-red-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>结束录音</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => stopRecording(booking.id)}
+                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                      >
+                                        <StopIcon size={22} className="sm:w-5 sm:h-5 text-red-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>结束录音</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
-                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
-                                    >
-                                      <SearchIcon size={20} className="text-gray-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>查询录音</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
+                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                      >
+                                        <SearchIcon size={22} className="sm:w-5 sm:h-5 text-gray-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>查询录音</TooltipContent>
+                                  </Tooltip>
+                                </div>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
-                                      className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                    >
-                                      <AiIcon size={20} className={`${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
-                                      {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
-                                </Tooltip>
+                                <div className="flex gap-3 sm:gap-4 flex-wrap">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
+                                        className={`relative cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                      >
+                                        <AiIcon size={22} className={`sm:w-5 sm:h-5 ${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
+                                        {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => handleOpenMeetingSummary(booking)}
-                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
-                                    >
-                                      <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                      </svg>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>会议纪要</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => handleOpenMeetingSummary(booking)}
+                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                      >
+                                        <svg className="w-5.5 h-5.5 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>会议纪要</TooltipContent>
+                                  </Tooltip>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      onClick={() => handlePlaneAction(booking)}
-                                      className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
-                                    >
-                                      <PlaneIcon size={20} className="text-teal-600" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>发送会议纪要</TooltipContent>
-                                </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={() => handlePlaneAction(booking)}
+                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                      >
+                                        <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>发送会议纪要</TooltipContent>
+                                  </Tooltip>
+                                </div>
                               </div>
                             </TooltipProvider>
                             {openRecordingBookingId === booking.id && (
-                              <div className="max-w-48">
+                              <div className="max-w-36 md:max-w-48">
                                 <Select
                                   value={rs.selectedId !== null ? String(rs.selectedId) : undefined}
                                   onValueChange={v => handleSelectValueChange(booking.id, v)}
                                   disabled={rs.recordings.length === 0}
                                 >
-                                  <SelectTrigger className="w-32 text-xs">
+                                  <SelectTrigger className="w-28 md:w-32 text-xs">
                                     <SelectValue placeholder={rs.recordings.length === 0 ? "暂无录音" : "选择录音"} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1110,7 +1160,7 @@ export default function MyBookingsPage() {
                                 <AudioPlayer
                                   src={rs.audioURL}
                                   title="录音回放"
-                                  className="w-full"
+                                  className="w-full max-w-full sm:max-w-xs md:max-w-md"
                                 />
                               </div>
                             )}
@@ -1137,7 +1187,9 @@ export default function MyBookingsPage() {
                           }
                         })()}</div>
                       </div>
-                      <Badge variant="secondary">已取消</Badge>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2">
+                        <Badge variant="secondary">已取消</Badge>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1179,7 +1231,7 @@ export default function MyBookingsPage() {
               </button>
             </div>
             
-            <div className="flex gap-4 mb-4">
+            <div className="flex flex-wrap gap-4 mb-4">
               <Button
                 onClick={handleGenerateSummary}
                 disabled={isGeneratingSummary}
@@ -1252,7 +1304,7 @@ export default function MyBookingsPage() {
               />
             </div>
             
-            <div className="flex gap-4 justify-end">
+            <div className="flex flex-wrap gap-4 justify-end">
               <Button
                 variant="outline"
                 onClick={() => setEditAnalysisDialogOpen(false)}

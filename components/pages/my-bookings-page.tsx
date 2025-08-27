@@ -8,14 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw, Edit } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw, Edit, UserPlus } from 'lucide-react';
 import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon } from '@/components/ui/icons';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { format, parseISO } from 'date-fns';
-import { Booking } from '@/lib/types';
+import { Booking, BookingUser } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
+import { EditParticipantsDialog } from '@/components/ui/edit-participants-dialog';
 import { requestAPI } from "@dootask/tools"
 import { toast } from "sonner";
 
@@ -57,6 +58,11 @@ export default function MyBookingsPage() {
   // 取消预定弹窗
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBookingId, setCancelBookingId] = useState<number | null>(null);
+  
+  // 编辑参会人员弹窗
+  const [editParticipantsDialogOpen, setEditParticipantsDialogOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [isUpdatingParticipants, setIsUpdatingParticipants] = useState(false);
   
   // 会议纪要弹窗
   const [meetingSummaryDialogOpen, setMeetingSummaryDialogOpen] = useState(false);
@@ -477,8 +483,48 @@ export default function MyBookingsPage() {
     onError: (error: Error) => { console.error('取消预定失败:', error); },
   });
 
+  // 更新参会人员的mutation
+  const updateParticipantsMutation = useMutation({
+    mutationFn: ({ bookingId, bookingUsers }: { bookingId: number; bookingUsers: BookingUser[] }) => 
+      bookingApi.updateBookingUsers(bookingId, bookingUsers),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
+      reloadAllBookings();
+      setEditParticipantsDialogOpen(false);
+      setEditingBooking(null);
+      setIsUpdatingParticipants(false); // 重要：确保重置更新状态
+      toast.success('参会人员已更新');
+    },
+    onError: (error: Error) => {
+      console.error('更新参会人员失败:', error);
+      setIsUpdatingParticipants(false); // 重要：确保重置更新状态
+      toast.error('更新参会人员失败，请稍后重试');
+    },
+    onSettled: () => {
+      // 无论成功还是失败，都确保重置更新状态
+      setIsUpdatingParticipants(false);
+    }
+  });
+
   const handleCancelBooking = (bookingId: number) => { setCancelBookingId(bookingId); setCancelDialogOpen(true); };
   const handleConfirmCancel = (cancelReason: string) => { if (cancelBookingId) cancelBookingMutation.mutate({ bookingId: cancelBookingId, cancelReason }); };
+
+  // 打开编辑参会人员对话框
+  const handleEditParticipants = (booking: Booking) => {
+    setEditingBooking(booking);
+    setEditParticipantsDialogOpen(true);
+  };
+
+  // 保存参会人员更新
+  const handleSaveParticipants = (participants: BookingUser[]) => {
+    if (!editingBooking) return;
+    
+    setIsUpdatingParticipants(true);
+    updateParticipantsMutation.mutate({
+      bookingId: editingBooking.id,
+      bookingUsers: participants
+    });
+  };
 
   // 检查录音分析状态
   const checkRecordingAnalysisStatus = async (booking: Booking): Promise<boolean> => {
@@ -914,6 +960,14 @@ export default function MyBookingsPage() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 ml-4">
                         <Badge 
                           variant="outline" 
+                          className="cursor-pointer hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center whitespace-nowrap"
+                          onClick={() => handleEditParticipants(booking)}
+                        >
+                          <UserPlus className="cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors" />
+
+                        </Badge>
+                        <Badge 
+                          variant="outline" 
                           className="cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors"
                           onClick={() => handleCancelBooking(booking.id)}
                         >
@@ -1328,6 +1382,18 @@ export default function MyBookingsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 编辑参会人员对话框 */}
+      {editingBooking && (
+        <EditParticipantsDialog
+          booking={editingBooking}
+          participants={editingBooking.booking_users || []}
+          isOpen={editParticipantsDialogOpen}
+          isUpdating={isUpdatingParticipants}
+          onClose={() => setEditParticipantsDialogOpen(false)}
+          onSave={handleSaveParticipants}
+        />
       )}
     </div>
   );

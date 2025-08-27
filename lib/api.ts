@@ -1,4 +1,4 @@
-import { Member, Room, Booking, BookingRequest, AvailableSlots } from './types';
+import { Member, Room, Booking, BookingRequest, AvailableSlots, BookingUser } from './types';
 import { getUserInfo } from '@dootask/tools';
 
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://lan-dootask.keli.vip/apps/roomly/api';
@@ -196,6 +196,37 @@ export const bookingApi = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
+  },
+
+  // 更新预定参会人员
+  updateBookingUsers: async (id: number, bookingUsers: BookingUser[]) => {
+    let token = '';
+    try {
+      const userInfo = await getUserInfo();
+      token = userInfo?.token || '';
+    } catch {
+      token = localStorage.getItem('token') || '';
+    }
+    
+    // 打印请求数据，用于调试
+    console.log('Updating booking users:', { id, bookingUsers });
+    
+    const response = await fetch(`${API_BASE_URL}/bookings/${id}/users`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ booking_users: bookingUsers }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating booking users:', errorText);
+      throw new Error(`Failed to update booking users: ${response.statusText}`);
+    }
+    
+    return response.json();
   },
 
   // 获取可用时间段

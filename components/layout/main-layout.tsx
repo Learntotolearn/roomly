@@ -43,10 +43,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-zinc-900">
       <Navigation isAdmin={isAdmin} currentMember={currentMember.name} />
-      <main className="container mx-auto px-4 py-8">
-        {children}
+      <main className="flex-1 content-scrollable">
+        <div className="container mx-auto px-4 py-8">
+          {children}
+        </div>
       </main>
     </div>
   );

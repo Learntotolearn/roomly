@@ -1,7 +1,7 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { memberApi, bookingApi, userApi, recordingGroupApi } from '@/lib/api';
+import { useMutation, useQueryClient }from '@tanstack/react-query';
+import { memberApi, bookingApi, userApi, recordingGroupApi }from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -773,18 +773,26 @@ export default function MyBookingsPage() {
                 const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
                 return (
                   <div key={`${booking.id}-${refreshCounter}`} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-2">
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-                          <div className="flex items-center -mr-1"><Badge variant="default">有效</Badge></div>
-                          <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium">{booking.room?.name}</span></div>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="space-y-2 min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center min-w-0">
+                            <Badge variant="default" className="mr-2 flex-shrink-0">有效</Badge>
+                            <MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300 flex-shrink-0" />
+                            <span className="font-medium truncate">{booking.room?.name}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1">
                           <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDate(booking.date)}</span></div>
                           <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatTime(booking.start_time, booking.end_time)}</span></div>
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span>{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <div>
-                            <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
+                          <div className="flex items-start gap-2">
+                            <strong>参会人员:</strong>
+                            <div className="flex-1 group">
+                              <span className="break-words">{booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '暂无参会人员'}</span>
+                            </div>
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
@@ -816,7 +824,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => startRecording(booking.id, title)}
-                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                        className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                                       >
                                         <MicrophoneIcon size={22} className="sm:w-5 sm:h-5 text-blue-600" />
                                       </div>
@@ -828,7 +836,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => stopRecording(booking.id)}
-                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                        className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
                                       >
                                         <StopIcon size={22} className="sm:w-5 sm:h-5 text-red-600" />
                                       </div>
@@ -840,7 +848,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
-                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <SearchIcon size={22} className="sm:w-5 sm:h-5 text-gray-600" />
                                       </div>
@@ -854,7 +862,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
-                                        className={`relative cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                        className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                                       >
                                         <AiIcon size={22} className={`sm:w-5 sm:h-5 ${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
                                         {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
@@ -867,7 +875,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => handleOpenMeetingSummary(booking)}
-                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <svg className="w-5.5 h-5.5 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -881,7 +889,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => handlePlaneAction(booking)}
-                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
                                       </div>
@@ -957,15 +965,20 @@ export default function MyBookingsPage() {
                           }
                         })()}</div>
                       </div>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2 ml-4">
-                        <Badge 
-                          variant="outline" 
-                          className="cursor-pointer hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center whitespace-nowrap"
-                          onClick={() => handleEditParticipants(booking)}
-                        >
-                          <UserPlus className="cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors" />
-
-                        </Badge>
+                      <div className="flex flex-col-reverse sm:flex-row items-center sm:items-center gap-2 sm:gap-2 ml-4 flex-shrink-0">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                onClick={() => handleEditParticipants(booking)}
+                                className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-green-100 flex items-center justify-center"
+                              >
+                                <UserPlus className="w-4 h-4 text-green-600" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>编辑参会人员</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Badge 
                           variant="outline" 
                           className="cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -994,17 +1007,25 @@ export default function MyBookingsPage() {
             <div className="space-y-4">
               {expiredBookings.slice(0, expiredShowCount).map((booking: Booking) => (
                 <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-                        <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium text-gray-600 dark:text-zinc-300">{booking.room?.name}</span></div>
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="space-y-2 min-w-0 flex-1">
+                      <div className="flex items-center">
+                        <div className="flex items-center min-w-0">
+                          <MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300 flex-shrink-0" />
+                          <span className="font-medium text-gray-600 dark:text-zinc-300 truncate">{booking.room?.name}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1">
                         <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span></div>
                         <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
                         <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        <div>
-                          <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
+                        <div className="flex items-start gap-2">
+                          <strong>参会人员:</strong>
+                          <div className="flex-1 group">
+                            <span className="break-words">{booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '暂无参会人员'}</span>
+                          </div>
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
@@ -1025,14 +1046,15 @@ export default function MyBookingsPage() {
                         }
                       })()}</div>
                     </div>
-                    {/* 操作区：已过期也允许编辑会议纪要 */}
-                    <div className="flex items-center space-x-2 ml-4">
+                    
+                    {/* 右侧操作区域 */}
+                    <div className="flex items-start space-x-2 flex-shrink-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div
                               onClick={() => handleOpenMeetingSummary(booking)}
-                              className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                              className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center"
                             >
                               <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1069,17 +1091,20 @@ export default function MyBookingsPage() {
                   const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
                   return (
                     <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 space-y-2">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="space-y-2 min-w-0 flex-1">
                         <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-                          <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="font-medium text-gray-600 dark:text-zinc-300">{booking.room?.name}</span></div>
+                          <div className="flex items-center min-w-0 max-w-full"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300 flex-shrink-0" /><span className="font-medium text-gray-600 dark:text-zinc-300 truncate">{booking.room?.name}</span></div>
                           <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span></div>
                           <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
                           <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <div>
-                            <strong>参会人员:</strong> {booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '-'}
+                          <div className="flex items-start gap-2">
+                            <strong>参会人员:</strong>
+                            <div className="flex-1 group">
+                              <span className="break-words">{booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '暂无参会人员'}</span>
+                            </div>
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
@@ -1112,7 +1137,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => startRecording(booking.id, title)}
-                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                        className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                                       >
                                         <MicrophoneIcon size={22} className="sm:w-5 sm:h-5 text-blue-600" />
                                       </div>
@@ -1124,7 +1149,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => stopRecording(booking.id)}
-                                        className={`cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                        className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
                                       >
                                         <StopIcon size={22} className="sm:w-5 sm:h-5 text-red-600" />
                                       </div>
@@ -1136,7 +1161,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
-                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <SearchIcon size={22} className="sm:w-5 sm:h-5 text-gray-600" />
                                       </div>
@@ -1150,7 +1175,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
-                                        className={`relative cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                        className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                                       >
                                         <AiIcon size={22} className={`sm:w-5 sm:h-5 ${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
                                         {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
@@ -1163,7 +1188,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => handleOpenMeetingSummary(booking)}
-                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <svg className="w-5.5 h-5.5 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1177,7 +1202,7 @@ export default function MyBookingsPage() {
                                     <TooltipTrigger asChild>
                                       <div
                                         onClick={() => handlePlaneAction(booking)}
-                                        className="cursor-pointer p-2.5 sm:p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100"
+                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
                                       </div>

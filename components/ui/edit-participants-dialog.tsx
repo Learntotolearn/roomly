@@ -15,7 +15,9 @@ const formatDate = (dateString: string) => {
 // 格式化时间函数
 const formatTime = (startTime: string, endTime: string) => {
   if (!startTime || !endTime) return '';
-  return `${startTime} - ${endTime}`;
+  // 将 00:00 显示为 24:00，与主页面保持一致
+  const displayEndTime = endTime === '00:00' ? '24:00' : endTime;
+  return `${startTime} - ${displayEndTime}`;
 };
 import { selectUsers, requestAPI } from '@dootask/tools';
 

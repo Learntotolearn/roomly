@@ -17,6 +17,7 @@ import { addDays, format, isBefore, isToday, startOfDay } from 'date-fns';
 import { TimeSlot, BookingRequest } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { EnhancedTimeSlots } from '@/components/ui/enhanced-time-slots';
 import { zhCN } from 'date-fns/locale';
 import { getUserInfo, requestAPI, selectUsers } from '@dootask/tools';
 
@@ -335,36 +336,13 @@ export default function BookingPage() {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {processTimeSlots(availableSlots?.time_slots || []).map((slot: TimeSlot & { isPastTime?: boolean }) => {
-                    const isDisabled = slot.is_booked || slot.isPastTime;
-                    const getButtonClass = () => {
-                      if (slot.is_booked) {
-                        return 'opacity-60 cursor-not-allowed bg-red-50 text-red-400 border-red-200';
-                      }
-                      if (slot.isPastTime) {
-                        return 'opacity-40 cursor-not-allowed bg-gray-50 text-gray-400';
-                      }
-                      return '';
-                    };
-                    
-                    return (
-                      <Button
-                        key={slot.start}
-                        type="button"
-                        variant={selectedTimeSlots.includes(slot.start) ? "default" : "outline"}
-                        className={`justify-start ${getButtonClass()}`}
-                        onClick={() => !isDisabled && handleTimeSlotToggle(slot.start)}
-                        disabled={isDisabled}
-                      >
-                        <div className="truncate w-full">
-                          {formatTimeSlot(slot.start)}
-                          {slot.is_booked && <span className="ml-1 text-xs">(已预定)</span>}
-                        </div>
-                      </Button>
-                    );
-                  })}
-                </div>
+                <EnhancedTimeSlots
+                  slots={processTimeSlots(availableSlots?.time_slots || [])}
+                  selectedTimeSlots={selectedTimeSlots}
+                  onTimeSlotToggle={handleTimeSlotToggle}
+                  formatTimeSlot={formatTimeSlot}
+                  selectedDate={selectedDate}
+                />
               )}
               
               {selectedTimeSlots.length > 0 && (

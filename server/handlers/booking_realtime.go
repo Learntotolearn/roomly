@@ -1,55 +1,47 @@
-package main
+package handlers
 
 import (
-	"log"
-	"os"
 	"time"
 
 	"roomly/database"
 	"roomly/models"
-	"roomly/routes"
 )
 
-func main() {
-	// 设置时区为 Asia/Shanghai
+// 实时检查并更新预订过期状态
+func CheckAndUpdateExpiredBookings(bookings []models.Booking) []models.Booking {
+	// 获取上海时区的当前时间
 	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		log.Fatal("Failed to load timezone:", err)
+		loc = time.Local
 	}
-	time.Local = loc
+	now := time.Now().In(loc)
 
-	// 初始化数据库
-	database.InitDB()
+	for i := range bookings {
+		booking := &bookings[i]
 
-	// 修复错误标记为过期的预订
-	FixWronglyExpiredBookings()
+		// 只检查active状态的预订
+		if booking.Status != "active" {
+			continue
+		}
 
-	// 注释：移除定时任务，改为API查询时实时检查
-	// 实时检查逻辑已集成到 handlers/booking_realtime.go 中
-	// go func() {
-	//	for {
-	//		UpdateExpiredBookings()
-	//		time.Sleep(5 * time.Minute)
-	//	}
-	// }()
+		// 计算预订结束时间
+		endTime, err := calculateBookingEndTime(*booking)
+		if err != nil {
+			continue
+		}
 
-	// 设置路由
-	r := routes.SetupRoutes()
-
-	// 获取端口，默认为8080
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+		// 检查是否已过期
+		if endTime.Before(now) || endTime.Equal(now) {
+			booking.Status = "expired"
+			// 立即更新数据库
+			database.DB.Save(booking)
+		}
 	}
 
-	// 启动服务器
-	log.Printf("服务器启动在端口 %s", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal("服务器启动失败:", err)
-	}
+	return bookings
 }
 
-// 计算预订的结束时间
+// 计算预订的结束时间（从main.go移动过来）
 func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
 	// 获取上海时区
 	loc, err := time.LoadLocation("Asia/Shanghai")
@@ -103,64 +95,22 @@ func calculateBookingEndTime(booking models.Booking) (time.Time, error) {
 	return endTime, nil
 }
 
-// 修复错误标记为过期的预订
-func FixWronglyExpiredBookings() {
-	// 获取上海时区的当前时间
+// 检查单个预订是否过期（不更新数据库）
+func IsBookingExpired(booking models.Booking) bool {
+	if booking.Status != "active" {
+		return booking.Status == "expired"
+	}
+
+	endTime, err := calculateBookingEndTime(booking)
+	if err != nil {
+		return false
+	}
+
 	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
 		loc = time.Local
 	}
 	now := time.Now().In(loc)
 
-	var bookings []models.Booking
-	database.DB.Model(&models.Booking{}).
-		Where("status = ?", "expired").
-		Find(&bookings)
-
-	fixedCount := 0
-	for _, booking := range bookings {
-		endTime, err := calculateBookingEndTime(booking)
-		if err != nil {
-			continue
-		}
-
-		// 如果实际上还没过期，则修复状态
-		if endTime.After(now) {
-			booking.Status = "active"
-			database.DB.Save(&booking)
-			fixedCount++
-		}
-	}
-
-}
-
-// 定时任务：将已过期的active预定状态更新为expired
-func UpdateExpiredBookings() {
-	// 获取上海时区的当前时间
-	loc, err := time.LoadLocation("Asia/Shanghai")
-	if err != nil {
-		loc = time.Local
-	}
-	now := time.Now().In(loc)
-
-	var activeBookings []models.Booking
-	database.DB.Model(&models.Booking{}).
-		Where("status = ?", "active").
-		Find(&activeBookings)
-
-	expiredCount := 0
-	for _, booking := range activeBookings {
-		endTime, err := calculateBookingEndTime(booking)
-		if err != nil {
-			continue
-		}
-
-		// 检查是否已过期（使用相同时区进行比较）
-		if endTime.Before(now) || endTime.Equal(now) {
-			booking.Status = "expired"
-			database.DB.Save(&booking)
-			expiredCount++
-		}
-	}
-
+	return endTime.Before(now) || endTime.Equal(now)
 }

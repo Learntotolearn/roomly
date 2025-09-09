@@ -134,7 +134,7 @@ export function EnhancedTimeSlots({
             count={availableSlots.length} 
             color="green" 
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {availableSlots.map(slot => renderTimeSlot(slot, 'available'))}
           </div>
         </div>
@@ -150,7 +150,7 @@ export function EnhancedTimeSlots({
             count={bookedSlots.length} 
             color="red" 
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {bookedSlots.map(slot => renderTimeSlot(slot, 'booked'))}
           </div>
         </div>
@@ -185,7 +185,7 @@ export function EnhancedTimeSlots({
           </Button>
           
           {showExpiredSlots && (
-            <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2 duration-300">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-in slide-in-from-top-2 duration-300">
               {expiredSlots.map(slot => renderTimeSlot(slot, 'expired'))}
             </div>
           )}

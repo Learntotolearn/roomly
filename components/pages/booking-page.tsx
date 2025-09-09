@@ -186,15 +186,25 @@ export default function BookingPage() {
       return slots.map(slot => ({ ...slot, isPastTime: false }));
     }
     
-    // 如果是今天，标记当前时间之前的时间段
+    // 如果是今天，标记当前时间已经超过时间段结束时间的时间段
     const now = new Date();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
     
     return slots.map(slot => {
       const [slotHours, slotMinutes] = slot.start.split(':').map(Number);
-      const isPastTime = slotHours < currentHours || 
-        (slotHours === currentHours && slotMinutes < currentMinutes);
+      
+      // 计算时间段的结束时间（开始时间 + 30分钟）
+      let endHours = slotHours;
+      let endMinutes = slotMinutes + 30;
+      if (endMinutes >= 60) {
+        endMinutes -= 60;
+        endHours += 1;
+      }
+      
+      // 只有当前时间超过了时间段的结束时间，才认为是过期时间段
+      const isPastTime = currentHours > endHours || 
+        (currentHours === endHours && currentMinutes >= endMinutes);
       
       return {
         ...slot,

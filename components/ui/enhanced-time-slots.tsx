@@ -7,7 +7,6 @@ import { Separator } from '@/components/ui/separator';
 import { 
   ChevronDown, 
   ChevronUp, 
-  Clock, 
   Eye, 
   EyeOff, 
   Calendar,
@@ -22,7 +21,7 @@ interface EnhancedTimeSlotsProps {
   selectedTimeSlots: string[];
   onTimeSlotToggle: (timeSlot: string) => void;
   formatTimeSlot: (start: string) => string;
-  selectedDate?: string;
+  
 }
 
 export function EnhancedTimeSlots({
@@ -30,8 +29,7 @@ export function EnhancedTimeSlots({
   selectedTimeSlots,
   onTimeSlotToggle,
   formatTimeSlot,
-  selectedDate
-}: EnhancedTimeSlotsProps) {
+  }: EnhancedTimeSlotsProps) {
   const [showExpiredSlots, setShowExpiredSlots] = useState(false);
 
   // 分离不同状态的时间段
@@ -39,7 +37,7 @@ export function EnhancedTimeSlots({
   const bookedSlots = slots.filter(slot => slot.is_booked && !slot.isPastTime);
   const expiredSlots = slots.filter(slot => slot.isPastTime);
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+
 
   const renderTimeSlot = (slot: TimeSlot & { isPastTime?: boolean }, category: 'available' | 'booked' | 'expired') => {
     const isSelected = selectedTimeSlots.includes(slot.start);
@@ -101,7 +99,7 @@ export function EnhancedTimeSlots({
     count, 
     color = 'gray' 
   }: { 
-    icon: any; 
+    icon: Record<string, unknown>; 
     title: string; 
     count: number; 
     color?: 'green' | 'red' | 'gray' | 'orange';

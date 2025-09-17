@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -30,17 +29,14 @@ import {
   FileText,
   Loader2,
   RotateCcw,
-  Shield,
   Clock,
   Users,
   Building
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAppContext } from '@/lib/context/app-context';
 import { toast } from 'sonner';
 
 function AdminRestorePage() {
-  const { Confirm } = useAppContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -73,7 +69,7 @@ function AdminRestorePage() {
   // 还原数据
   const restoreDataMutation = useMutation({
     mutationFn: backupApi.restoreData,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['backups'] });
       toast.success('数据还原成功！页面将自动刷新以显示最新数据。');
       
@@ -82,7 +78,7 @@ function AdminRestorePage() {
         window.location.reload();
       }, 2000);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || '数据还原失败');
     },
   });

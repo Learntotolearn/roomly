@@ -1,4 +1,4 @@
-import { BackupInfo, BackupData, RestoreRequest } from '@/lib/types';
+import { BackupInfo, RestoreRequest } from '@/lib/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -50,7 +50,7 @@ export const backupApi = {
   },
 
   // 获取备份详情
-  async getBackupDetail(filename: string): Promise<{ backup: BackupInfo; stats: any }> {
+  async getBackupDetail(filename: string): Promise<{ backup: BackupInfo; stats: Record<string, unknown> }> {
     const response = await fetch(`${API_BASE}/backup/detail/${filename}`);
     if (!response.ok) {
       throw new Error('获取备份详情失败');
@@ -78,8 +78,8 @@ export const backupApi = {
   async getRestorePreview(filename: string): Promise<{
     filename: string;
     format: string;
-    backup_data: any;
-    current_data: any;
+    backup_data: Record<string, unknown>;
+    current_data: Record<string, unknown>;
     will_replace: boolean;
   }> {
     const response = await fetch(`${API_BASE}/backup/restore/preview/${filename}`);

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserPlus, X } from 'lucide-react';
 import { BookingUser, Booking } from '@/lib/types';
-import { calculateDuration, formatDuration } from '@/lib/utils';
+
 
 // 格式化日期函数
 const formatDate = (dateString: string) => {

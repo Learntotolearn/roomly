@@ -13,7 +13,6 @@ import {
   Calendar, 
   Clock, 
   MapPin, 
-  Users,
   Edit,
   Eye,
   Trash2,
@@ -43,12 +42,12 @@ function MeetingSummariesContent() {
   });
 
   // 过滤有会议纪要的预定
-  const summariesWithContent = bookingsData?.filter((booking: Booking) => 
+  const summariesWithContent = bookingsData?.filter((booking) => 
     booking.summary_content && booking.summary_content.trim() !== ''
   ) || [];
 
   // 应用搜索和过滤
-  const filteredSummaries = summariesWithContent.filter((booking: Booking) => {
+  const filteredSummaries = summariesWithContent.filter((booking) => {
     const matchesSearch = searchTerm === '' || 
       booking.room?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,11 +84,11 @@ function MeetingSummariesContent() {
     }
   };
 
-  const handleViewSummary = (booking: Booking) => {
+  const handleViewSummary = () => {
     toast.info('查看会议纪要功能开发中...');
   };
 
-  const handleEditSummary = (booking: Booking) => {
+  const handleEditSummary = () => {
     toast.info('编辑会议纪要功能开发中...');
   };
 
@@ -108,7 +107,7 @@ function MeetingSummariesContent() {
 
   // 获取唯一的会议室列表用于过滤
   const uniqueRooms = Array.from(new Set(
-    summariesWithContent.map((booking: Booking) => booking.room?.name).filter(Boolean)
+    summariesWithContent.map((booking) => booking.room?.name).filter(Boolean)
   ));
 
   if (isLoading) {
@@ -192,7 +191,7 @@ function MeetingSummariesContent() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredSummaries.map((booking: Booking) => (
+              {filteredSummaries.map((booking) => (
                 <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="flex-1 space-y-2">
@@ -240,7 +239,7 @@ function MeetingSummariesContent() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewSummary(booking)}
+                        onClick={handleViewSummary}
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         查看
@@ -248,7 +247,7 @@ function MeetingSummariesContent() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEditSummary(booking)}
+                        onClick={handleEditSummary}
                       >
                         <Edit className="w-4 h-4 mr-1" />
                         编辑

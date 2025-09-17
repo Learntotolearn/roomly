@@ -8,16 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Calendar, Clock, MapPin, X, CalendarOff, Loader2, Timer, RefreshCcw, Edit, UserPlus } from 'lucide-react';
+import { Calendar, Clock, MapPin, CalendarOff, Loader2, Timer, RefreshCcw, Edit, UserPlus } from 'lucide-react';
 import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon } from '@/components/ui/icons';
 import { AudioPlayer } from '@/components/ui/audio-player';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Booking, BookingUser } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
 import { EditParticipantsDialog } from '@/components/ui/edit-participants-dialog';
-import { requestAPI } from "@dootask/tools"
 import { toast } from "sonner";
 
 // 录音状态接口
@@ -136,12 +135,12 @@ export default function MyBookingsPage() {
 
       const clean = data.map(r => {
         // 使用类型断言处理服务器返回的数据格式
-        const serverData = r as any;
+        const serverData = r as unknown as Record<string, unknown>;
         return {
           ...r,
-          id: serverData.id || serverData.Id, // 兼容大小写
-          title: (serverData.title || '').replace(/\s*-\s*$/, '').replace(/\s*Invalid Date\s*$/, ''),
-          duration: serverData.duration || null, // 允许 duration 为 null
+          id: (serverData.id || serverData.Id) as number, // 兼容大小写
+          title: String(serverData.title || '').replace(/\s*-\s*$/, '').replace(/\s*Invalid Date\s*$/, ''),
+          duration: (serverData.duration as number) || null, // 允许 duration 为 null
         };
       });
       const matched = clean.filter(r => (r.title || '').includes(title) || title.includes(r.title || ''));
@@ -225,7 +224,7 @@ export default function MyBookingsPage() {
       const data = await res.json();
       
       // 验证响应数据是否包含必要的字段（兼容大小写）
-      const serverData = data as any;
+      const serverData = data as unknown as Record<string, unknown>;
       const recordingId = serverData.id || serverData.Id;
       if (!data || !recordingId) {
         console.error('录音上传响应缺少必要字段:', data);
@@ -235,8 +234,8 @@ export default function MyBookingsPage() {
       // 标准化数据格式
       const normalizedData = {
         ...data,
-        id: recordingId, // 统一使用小写 id
-        duration: serverData.duration || null, // 允许 duration 为 null
+        id: recordingId as number, // 统一使用小写 id
+        duration: (serverData.duration as number) || null, // 允许 duration 为 null
       };
       
       return normalizedData as Recording;
@@ -313,8 +312,8 @@ export default function MyBookingsPage() {
         updateRecordingState(targetBooking.id, { analyzing: false });
       }
 
-    } catch (error) {
-      console.error('AI分析失败:', error);
+    } catch {
+      console.error('AI分析失败');
       toast.error('AI分析失败，请检查网络连接或稍后重试！');
       updateRecordingState(targetBooking.id, { analyzing: false });
     }
@@ -368,15 +367,14 @@ export default function MyBookingsPage() {
             (cleanedAi && cleanedAi.length > 0) ? cleanedAi : '暂无会议纪要内容',
           ].join('\n');
       
-      // 组装时间段（不再传给通知接口，避免服务端加头部模板）
-      const timeSlots = [targetBooking.start_time, targetBooking.end_time];
+
       
       // 显示发送中提示
       toast.info(`正在发送会议纪要通知给 ${userIds.length} 位参会人员...`);
       
       // 发送会议纪要通知（使用新的 POST 接口）
       // 仅发送正文，去掉 date/timeSlots/roomName 以避免服务端自动加“会议纪要通知”头部
-      const result = await userApi.sendMeetingSummary(
+      await userApi.sendMeetingSummary(
         userIds,
         summaryContent
       );
@@ -385,7 +383,7 @@ export default function MyBookingsPage() {
       // 成功提示
       toast.success(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
       
-    } catch (error) {
+    } catch {
       console.error('发送会议纪要通知失败:', error);
       toast.error(`❌ 发送会议纪要通知失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
@@ -527,41 +525,9 @@ export default function MyBookingsPage() {
   };
 
   // 检查录音分析状态
-  const checkRecordingAnalysisStatus = async (booking: Booking): Promise<boolean> => {
-    try {
-      const title = `${formatDate(booking.date)}-${booking.start_time}-${booking.end_time}`;
-      const token = await loginAndGetToken();
-      const list = await recordingGroupApi.getByName(title, token);
-      const groupItem = Array.isArray(list) && list.length > 0 ? list[0] : null;
-      
-      if (groupItem && groupItem.status === 'completed') {
-        return true;
-      }
-      
-      // 如果没有找到分组，检查单个录音的分析状态
-      const rs = getRecordingState(booking.id);
-      const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
-      
-      if (selected && selected.analysis) {
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('检查录音分析状态失败:', error);
-      return false;
-    }
-  };
+  
 
-  // 会议纪要相关函数
-  const handleOpenMeetingSummaryWithCheck = async (booking: Booking) => {
-    const isCompleted = await checkRecordingAnalysisStatus(booking);
-    if (isCompleted) {
-      handleOpenMeetingSummary(booking);
-    } else {
-      toast.error('录音分析尚未完成，请等待分析完成后再查看会议纪要');
-    }
-  };
+
 
   const handleOpenMeetingSummary = async (booking: Booking) => {
     setCurrentBooking(booking);
@@ -596,7 +562,7 @@ export default function MyBookingsPage() {
             return ms;
           });
         }, 0);
-      } catch (error) {
+      } catch {
       }
     }
   };
@@ -623,7 +589,7 @@ export default function MyBookingsPage() {
         await fetchRecordings(currentBooking.id, title);
       }
       
-    } catch (error) {
+    } catch {
       console.error('更新录音分析失败:', error);
       toast.error('更新录音分析失败，请稍后重试');
     } finally {
@@ -671,7 +637,7 @@ export default function MyBookingsPage() {
       
       setMeetingSummary(summaryContent);
       toast.success('会议纪要模板已生成');
-    } catch (error) {
+    } catch {
       console.error('生成会议纪要失败:', error);
       toast.error('生成会议纪要失败，请稍后重试');
     } finally {
@@ -700,7 +666,7 @@ export default function MyBookingsPage() {
         const idMap: Record<string, number> = rawMap ? JSON.parse(rawMap) : {};
         const boundId = idMap[String(currentBooking.id)];
 
-        let res: any;
+        let res: Record<string, unknown>;
         if (boundId) {
           // 仅部分更新，避免触发文件字段校验
           res = await recordingGroupApi.partialUpdate(boundId, { analysis: meetingSummary }, token);
@@ -721,7 +687,7 @@ export default function MyBookingsPage() {
         toast.info('未开启后端保存，已生成本地内容');
       }
       setMeetingSummaryDialogOpen(false);
-    } catch (error) {
+    } catch {
       console.error('保存会议纪要失败:', error);
       const msg = error instanceof Error ? error.message : String(error);
       toast.error(`保存会议纪要失败：${msg}`);
@@ -959,8 +925,8 @@ export default function MyBookingsPage() {
                             
                             // 备用方案
                             return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                          } catch (error) {
-                            console.error('时间格式化错误:', error);
+                          } catch {
+                            console.error('时间格式化错误');
                             return booking.created_at;
                           }
                         })()}</div>
@@ -1040,7 +1006,7 @@ export default function MyBookingsPage() {
                           
                           // 备用方案
                           return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                        } catch (error) {
+                        } catch {
                           console.error('时间格式化错误:', error);
                           return booking.created_at;
                         }
@@ -1260,8 +1226,8 @@ export default function MyBookingsPage() {
                             
                             // 备用方案
                             return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                          } catch (error) {
-                            console.error('时间格式化错误:', error);
+                          } catch {
+                            console.error('时间格式化错误');
                             return booking.created_at;
                           }
                         })()}</div>

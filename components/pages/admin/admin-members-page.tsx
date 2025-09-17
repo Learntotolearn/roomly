@@ -20,7 +20,7 @@ import {
   RefreshCcw,
   Filter
 } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMutation } from '@tanstack/react-query';
@@ -67,9 +67,9 @@ export default function AdminMembersPage() {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       Alert('操作成功');
     },
-    onError: (error) => {
+    onError: () => {
       Alert('操作失败');
-      console.error('设置会议室管理员失败', error);
+      console.error('设置会议室管理员失败');
     },
   });
 
@@ -203,7 +203,7 @@ export default function AdminMembersPage() {
                           return `${year}-${month}-${day} ${hour}:${minute}`;
                         }
                         return member.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                      } catch (error) {
+                      } catch {
                         return member.created_at;
                       }
                     })()}

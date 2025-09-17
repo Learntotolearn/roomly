@@ -525,7 +525,7 @@ export default function AdminBookingsPage() {
                           return `${year}-${month}-${day} ${hour}:${minute}`;
                         }
                         return createdAt.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                      } catch (error) {
+                      } catch {
                         return booking.created_at || '';
                       }
                     })()}
@@ -650,7 +650,7 @@ export default function AdminBookingsPage() {
                         return `${year}-${month}-${day} ${hour}:${minute}`;
                       }
                       return createdAt.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                    } catch (error) {
+                    } catch {
                       return detail.created_at || '';
                     }
                   })()}

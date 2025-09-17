@@ -43,7 +43,6 @@ import {
   Users,
   Loader2
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { useAppContext } from '@/lib/context/app-context';
 
 export default function AdminRoomsPage() {
@@ -320,7 +319,7 @@ export default function AdminRoomsPage() {
                           return `${year}-${month}-${day} ${hour}:${minute}`;
                         }
                         return room.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                      } catch (error) {
+                      } catch {
                         return room.created_at;
                       }
                     })()}

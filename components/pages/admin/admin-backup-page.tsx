@@ -7,7 +7,7 @@ import { BackupInfo } from '@/lib/types';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -58,20 +58,17 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAppContext } from '@/lib/context/app-context';
 import { toast } from 'sonner';
 
 export default function AdminBackupPage() {
-  const { Confirm } = useAppContext();
   const queryClient = useQueryClient();
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupInfo | null>(null);
-  const [activeTab, setActiveTab] = useState('backups');
   const [createForm, setCreateForm] = useState({
-    format: 'sql' as 'sql',
+    format: 'sql' as const,
     description: ''
   });
 
@@ -92,7 +89,7 @@ export default function AdminBackupPage() {
       setCreateForm({ format: 'sql', description: '' });
       toast.success('备份创建成功');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || '备份创建失败');
     },
   });
@@ -106,7 +103,7 @@ export default function AdminBackupPage() {
       setSelectedBackup(null);
       toast.success('备份删除成功');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || '备份删除失败');
     },
   });
@@ -116,7 +113,7 @@ export default function AdminBackupPage() {
   // 还原数据
   const restoreDataMutation = useMutation({
     mutationFn: backupApi.restoreData,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['backups'] });
       setIsRestoreDialogOpen(false);
       setSelectedBackup(null);
@@ -127,7 +124,7 @@ export default function AdminBackupPage() {
         window.location.reload();
       }, 2000);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || '数据还原失败');
     },
   });
@@ -155,8 +152,9 @@ export default function AdminBackupPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('备份文件下载成功');
-    } catch (error: any) {
-      toast.error(error.message || '下载失败');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '下载失败';
+      toast.error(errorMessage);
     }
   };
 
@@ -198,7 +196,7 @@ export default function AdminBackupPage() {
     );
   };
 
-  const getFormatBadge = (format: string) => {
+  const getFormatBadge = () => {
     return (
       <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900 dark:text-purple-200">
         <Database className="w-3 h-3 mr-1" />
@@ -342,7 +340,7 @@ export default function AdminBackupPage() {
                 <div className="text-center py-8">
                   <Database className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">暂无备份文件</p>
-                  <p className="text-sm text-gray-400 mt-2">点击上方"立即备份"按钮创建第一个备份</p>
+                  <p className="text-sm text-gray-400 mt-2">点击上方&ldquo;立即备份&rdquo;按钮创建第一个备份</p>
                 </div>
               ) : (
                 <Table>
@@ -364,7 +362,7 @@ export default function AdminBackupPage() {
                           {backup.filename}
                         </TableCell>
                         <TableCell>
-                          {getFormatBadge(backup.format)}
+                          {getFormatBadge()}
                         </TableCell>
                         <TableCell>{formatFileSize(backup.size)}</TableCell>
                         <TableCell>
@@ -429,7 +427,7 @@ export default function AdminBackupPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认还原数据</AlertDialogTitle>
             <AlertDialogDescription>
-              您即将从备份文件 "{selectedBackup?.filename}" 还原数据，这将：
+              您即将从备份文件 &ldquo;{selectedBackup?.filename}&rdquo; 还原数据，这将：
             </AlertDialogDescription>
             <div className="space-y-3">
               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -465,7 +463,7 @@ export default function AdminBackupPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除备份</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除备份文件 "{selectedBackup?.filename}" 吗？此操作不可撤销。
+              确定要删除备份文件 &ldquo;{selectedBackup?.filename}&rdquo; 吗？此操作不可撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -73,6 +73,30 @@ func SetupRoutes() *gin.Engine {
 			export.GET("/bookings", handlers.ExportBookings)
 			export.GET("/room-usage", handlers.ExportRoomUsage)
 		}
+
+		// 备份还原相关路由
+		backup := api.Group("/backup")
+		{
+			backup.POST("/create", handlers.CreateBackup)
+			backup.GET("/list", handlers.GetBackupList)
+			backup.GET("/download/:filename", handlers.DownloadBackup)
+			backup.DELETE("/:filename", handlers.DeleteBackup)
+			backup.GET("/detail/:filename", handlers.GetBackupDetail)
+			backup.POST("/restore", handlers.RestoreData)
+			backup.GET("/restore/preview/:filename", handlers.GetRestorePreview)
+
+			// 操作日志相关路由
+			backup.GET("/logs", handlers.GetBackupLogs)
+			backup.GET("/logs/:id", handlers.GetBackupLogDetail)
+			backup.DELETE("/logs", handlers.DeleteBackupLogs)
+
+			// 验证相关路由
+			backup.GET("/validate/:filename", handlers.ValidateBackupFile)
+			backup.GET("/checksum/:filename", handlers.VerifyBackupChecksumHandler)
+			backup.POST("/cleanup", handlers.CleanupCorruptedBackupsHandler)
+			backup.POST("/repair/:filename", handlers.RepairBackupFileHandler)
+			backup.GET("/validate-all", handlers.BatchValidateBackups)
+		}
 	}
 
 	// 健康检查

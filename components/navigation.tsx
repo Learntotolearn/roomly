@@ -10,7 +10,8 @@ import {
   FileText, 
   Home,
   Menu,
-  Users
+  Users,
+  Database
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
@@ -31,6 +32,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
       { href: '/admin/members', label: '会员管理', icon: Users },
       { href: '/admin/rooms', label: '会议室管理', icon: Settings },
       { href: '/admin/bookings', label: '预定管理', icon: FileText },
+      { href: '/admin/backup', label: '数据备份', icon: Database },
     ] : []),
   ];
 

@@ -48,6 +48,49 @@ export interface TimeSlot {
   is_booked: boolean;
 }
 
+// 备份相关类型
+export interface BackupInfo {
+  id: string;
+  filename: string;
+  file_path: string;
+  format: 'sql' | 'json';
+  size: number;
+  created_at: string;
+  created_by: string;
+  is_valid: boolean;
+  description?: string;
+}
+
+export interface BackupData {
+  version: string;
+  created_at: string;
+  created_by: string;
+  description: string;
+  members: Member[];
+  rooms: Room[];
+  bookings: Booking[];
+  booking_users: BookingUser[];
+}
+
+export interface RestoreRequest {
+  filename: string;
+  backup_before: boolean;
+  description?: string;
+}
+
+export interface BackupLog {
+  id: number;
+  operation: 'backup' | 'restore' | 'download' | 'delete';
+  status: 'success' | 'failed' | 'in_progress';
+  filename: string;
+  format: string;
+  size: number;
+  created_by: string;
+  error_msg?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
 export interface AvailableSlots {
   date: string;
   time_slots: TimeSlot[];

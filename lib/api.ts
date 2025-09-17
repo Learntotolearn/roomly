@@ -2,7 +2,7 @@ import { Member, Room, Booking, BookingRequest, AvailableSlots, BookingUser } fr
 import { getUserInfo } from '@dootask/tools';
 
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://lan-dootask.keli.vip/apps/roomly/api';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090/api';
 
 
 // 基础API调用函数
@@ -91,6 +91,9 @@ export const memberApi = {
     return apiCall<{ data: Booking[]; total: number }>(url);
   },
 };
+
+// 备份相关API
+export { backupApi } from './api/backup';
 
 // 会议室相关API
 export const roomApi = {

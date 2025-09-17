@@ -85,11 +85,6 @@ func SetupRoutes() *gin.Engine {
 			backup.POST("/restore", handlers.RestoreData)
 			backup.GET("/restore/preview/:filename", handlers.GetRestorePreview)
 
-			// 操作日志相关路由
-			backup.GET("/logs", handlers.GetBackupLogs)
-			backup.GET("/logs/:id", handlers.GetBackupLogDetail)
-			backup.DELETE("/logs", handlers.DeleteBackupLogs)
-
 			// 验证相关路由
 			backup.GET("/validate/:filename", handlers.ValidateBackupFile)
 			backup.GET("/checksum/:filename", handlers.VerifyBackupChecksumHandler)

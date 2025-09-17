@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"roomly/config"
-	"roomly/database"
 	"roomly/models"
 
 	"github.com/gin-gonic/gin"
@@ -45,16 +44,6 @@ func GetBackupList(c *gin.Context) {
 
 	var backups []models.BackupInfo
 
-	// 获取备份日志记录
-	var logs []models.BackupLog
-	database.DB.Where("operation = ? AND status = ?", "backup", "success").Find(&logs)
-
-	// 创建日志映射
-	logMap := make(map[string]models.BackupLog)
-	for _, log := range logs {
-		logMap[log.Filename] = log
-	}
-
 	// 处理每个备份文件
 	for _, file := range files {
 		if file.IsDir() {
@@ -80,16 +69,13 @@ func GetBackupList(c *gin.Context) {
 		// 验证文件完整性
 		isValid := validateBackupFile(filePath, ext[1:])
 
-		// 从日志中获取创建者信息
-		createdBy := "unknown"
+		// 设置默认创建者信息
+		createdBy := "admin"
 		description := ""
-		if log, exists := logMap[filename]; exists {
-			createdBy = log.CreatedBy
-			// 对于JSON文件，可以尝试从文件中读取描述
-			if ext == ".json" {
-				if desc := getDescriptionFromJSONBackup(filePath); desc != "" {
-					description = desc
-				}
+		// 对于JSON文件，可以尝试从文件中读取描述
+		if ext == ".json" {
+			if desc := getDescriptionFromJSONBackup(filePath); desc != "" {
+				description = desc
 			}
 		}
 
@@ -148,16 +134,6 @@ func DownloadBackup(c *gin.Context) {
 		return
 	}
 
-	// 记录下载日志
-	createdBy := getUserFromContext(c)
-	log := models.BackupLog{
-		Operation: "download",
-		Status:    "success",
-		Filename:  filename,
-		CreatedBy: createdBy,
-	}
-	database.DB.Create(&log)
-
 	// 设置下载响应头
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Transfer-Encoding", "binary")
@@ -203,16 +179,6 @@ func DeleteBackup(c *gin.Context) {
 		return
 	}
 
-	// 记录删除日志
-	createdBy := getUserFromContext(c)
-	log := models.BackupLog{
-		Operation: "delete",
-		Status:    "success",
-		Filename:  filename,
-		CreatedBy: createdBy,
-	}
-	database.DB.Create(&log)
-
 	c.JSON(http.StatusOK, gin.H{"message": "备份文件删除成功"})
 }
 
@@ -250,10 +216,6 @@ func GetBackupDetail(c *gin.Context) {
 	// 获取备份统计信息
 	stats := getBackupStats(filePath, format)
 
-	// 从日志中获取创建者信息
-	var log models.BackupLog
-	database.DB.Where("filename = ? AND operation = ?", filename, "backup").First(&log)
-
 	backup := models.BackupInfo{
 		ID:          generateBackupID(filename),
 		Filename:    filename,
@@ -261,7 +223,7 @@ func GetBackupDetail(c *gin.Context) {
 		Format:      format,
 		Size:        fileInfo.Size(),
 		CreatedAt:   fileInfo.ModTime(),
-		CreatedBy:   log.CreatedBy,
+		CreatedBy:   "admin",
 		IsValid:     isValid,
 		Description: getDescriptionFromBackup(filePath, format),
 	}

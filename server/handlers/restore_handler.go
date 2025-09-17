@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"roomly/config"
 	"roomly/database"
@@ -46,9 +45,6 @@ func RestoreData(c *gin.Context) {
 		return
 	}
 
-	// 获取操作用户信息
-	createdBy := getUserFromContext(c)
-
 	// 验证备份文件完整性
 	validationResult, validationErr := ValidateRestoreCompatibility(filePath)
 	if validationErr != nil {
@@ -65,34 +61,6 @@ func RestoreData(c *gin.Context) {
 		return
 	}
 
-	// 记录开始时间
-	startTime := time.Now()
-
-	// 创建还原日志记录
-	log := models.BackupLog{
-		Operation: "restore",
-		Status:    "in_progress",
-		Filename:  req.Filename,
-		CreatedBy: createdBy,
-	}
-	database.DB.Create(&log)
-
-	// 如果需要，先备份当前数据
-	var preBackupFilename string
-	if req.BackupBefore {
-		preBackupFilename = fmt.Sprintf("pre_restore_backup_%s.sql", time.Now().Format("20060102_150405"))
-		cfg := config.Load()
-		preBackupPath := filepath.Join(cfg.BackupPath, preBackupFilename)
-
-		if _, err := createSQLBackup(preBackupPath, createdBy, "还原前自动备份"); err != nil {
-			log.Status = "failed"
-			log.ErrorMsg = fmt.Sprintf("还原前备份失败: %v", err)
-			database.DB.Save(&log)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "还原前备份失败"})
-			return
-		}
-	}
-
 	// 确定备份文件格式
 	ext := strings.ToLower(filepath.Ext(req.Filename))
 	format := ext[1:] // 去掉点号
@@ -106,32 +74,14 @@ func RestoreData(c *gin.Context) {
 		err = fmt.Errorf("不支持的备份格式: %s", format)
 	}
 
-	// 更新日志记录
-	now := time.Now()
-	log.CompletedAt = &now
-
 	if err != nil {
-		log.Status = "failed"
-		log.ErrorMsg = err.Error()
-		database.DB.Save(&log)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("数据还原失败: %v", err)})
 		return
 	}
 
-	log.Status = "success"
-	log.Duration = time.Since(startTime).Milliseconds()
-	database.DB.Save(&log)
-
-	response := gin.H{
-		"message":        "数据还原成功",
-		"restore_log_id": log.ID,
-	}
-
-	if req.BackupBefore {
-		response["pre_backup_filename"] = preBackupFilename
-	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "数据还原成功",
+	})
 }
 
 // 从JSON文件还原数据

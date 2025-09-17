@@ -74,22 +74,10 @@ export interface BackupData {
 
 export interface RestoreRequest {
   filename: string;
-  backup_before: boolean;
   description?: string;
 }
 
-export interface BackupLog {
-  id: number;
-  operation: 'backup' | 'restore' | 'download' | 'delete';
-  status: 'success' | 'failed' | 'in_progress';
-  filename: string;
-  format: string;
-  size: number;
-  created_by: string;
-  error_msg?: string;
-  created_at: string;
-  completed_at?: string;
-}
+
 
 export interface AvailableSlots {
   date: string;

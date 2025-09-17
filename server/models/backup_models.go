@@ -4,22 +4,6 @@ import (
 	"time"
 )
 
-// 备份操作日志
-type BackupLog struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	Operation   string     `gorm:"not null" json:"operation"` // "backup", "restore", "download", "delete"
-	Status      string     `gorm:"not null" json:"status"`    // "success", "failed", "in_progress"
-	Filename    string     `json:"filename"`
-	Format      string     `json:"format"`
-	Size        int64      `json:"size"`
-	Checksum    string     `json:"checksum"` // 文件校验和
-	CreatedBy   string     `gorm:"not null" json:"created_by"`
-	ErrorMsg    string     `json:"error_msg"`
-	Duration    int64      `json:"duration"` // 操作耗时（毫秒）
-	CreatedAt   time.Time  `json:"created_at"`
-	CompletedAt *time.Time `json:"completed_at"`
-}
-
 // 备份文件信息结构
 type BackupInfo struct {
 	ID          string    `json:"id"`
@@ -47,7 +31,6 @@ type BackupData struct {
 
 // 数据还原请求结构
 type RestoreRequest struct {
-	Filename     string `json:"filename" binding:"required"`
-	BackupBefore bool   `json:"backup_before"` // 还原前是否备份当前数据
-	Description  string `json:"description"`   // 还原操作描述
+	Filename    string `json:"filename" binding:"required"`
+	Description string `json:"description"` // 还原操作描述
 }

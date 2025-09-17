@@ -59,23 +59,8 @@ func CreateBackup(c *gin.Context) {
 	// 获取操作用户信息
 	createdBy := getUserFromContext(c)
 
-	// 记录开始时间
-	startTime := time.Now()
-
-	// 创建备份日志记录
-	log := models.BackupLog{
-		Operation: "backup",
-		Status:    "in_progress",
-		Format:    req.Format,
-		CreatedBy: createdBy,
-	}
-	database.DB.Create(&log)
-
 	// 确保备份目录存在
 	if err := ensureBackupDir(); err != nil {
-		log.Status = "failed"
-		log.ErrorMsg = err.Error()
-		database.DB.Save(&log)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建备份目录失败"})
 		return
 	}
@@ -95,16 +80,7 @@ func CreateBackup(c *gin.Context) {
 		fileSize, err = createSQLBackup(filepath, createdBy, req.Description)
 	}
 
-	// 更新日志记录
-	now := time.Now()
-	log.Filename = filename
-	log.Size = fileSize
-	log.CompletedAt = &now
-
 	if err != nil {
-		log.Status = "failed"
-		log.ErrorMsg = err.Error()
-		database.DB.Save(&log)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("备份失败: %v", err)})
 		return
 	}
@@ -114,9 +90,6 @@ func CreateBackup(c *gin.Context) {
 	validationResult := validator.ValidateBackupFile()
 
 	if !validationResult.IsValid {
-		log.Status = "failed"
-		log.ErrorMsg = "备份文件验证失败: " + strings.Join(validationResult.Errors, "; ")
-		database.DB.Save(&log)
 		// 删除无效的备份文件
 		os.Remove(filepath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "备份文件验证失败"})
@@ -124,24 +97,16 @@ func CreateBackup(c *gin.Context) {
 	}
 
 	// 创建校验和文件
-	if err := CreateBackupChecksum(filepath); err != nil {
-		log.ErrorMsg = "创建校验和失败: " + err.Error()
-		// 不影响备份成功，只记录警告
-	}
-
-	log.Status = "success"
-	log.Checksum = validationResult.Checksum
-	log.Duration = time.Since(startTime).Milliseconds()
-	database.DB.Save(&log)
+	CreateBackupChecksum(filepath)
 
 	// 返回备份信息
 	backupInfo := models.BackupInfo{
-		ID:          fmt.Sprintf("%d", log.ID),
+		ID:          generateBackupID(filename),
 		Filename:    filename,
 		FilePath:    filepath,
 		Format:      req.Format,
 		Size:        fileSize,
-		CreatedAt:   log.CreatedAt,
+		CreatedAt:   time.Now(),
 		CreatedBy:   createdBy,
 		IsValid:     validationResult.IsValid,
 		Description: req.Description,

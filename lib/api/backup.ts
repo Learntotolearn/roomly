@@ -59,7 +59,7 @@ export const backupApi = {
   },
 
   // 还原数据
-  async restoreData(data: RestoreRequest): Promise<{ message: string; restore_log_id: number; pre_backup_filename?: string }> {
+  async restoreData(data: RestoreRequest): Promise<{ message: string; pre_backup_filename?: string }> {
     const response = await fetch(`${API_BASE}/backup/restore`, {
       method: 'POST',
       headers: {
@@ -89,48 +89,5 @@ export const backupApi = {
     return response.json();
   },
 
-  // 获取操作日志
-  async getBackupLogs(params?: { page?: number; page_size?: number; operation?: string; status?: string }): Promise<{
-    logs: any[];
-    total: number;
-    page: number;
-    page_size: number;
-    total_pages: number;
-  }> {
-    let url = `${API_BASE}/backup/logs`;
-    if (params) {
-      const searchParams = new URLSearchParams();
-      if (params.page) searchParams.append('page', String(params.page));
-      if (params.page_size) searchParams.append('page_size', String(params.page_size));
-      if (params.operation) searchParams.append('operation', params.operation);
-      if (params.status) searchParams.append('status', params.status);
-      url += '?' + searchParams.toString();
-    }
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error('获取操作日志失败');
-    }
-    return response.json();
-  },
 
-  // 获取日志详情
-  async getBackupLogDetail(id: number): Promise<{ log: any }> {
-    const response = await fetch(`${API_BASE}/backup/logs/${id}`);
-    if (!response.ok) {
-      throw new Error('获取日志详情失败');
-    }
-    return response.json();
-  },
-
-  // 清理旧日志
-  async deleteBackupLogs(days: number = 30): Promise<{ message: string; deleted_count: number; cutoff_date: string }> {
-    const response = await fetch(`${API_BASE}/backup/logs?days=${days}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || '清理日志失败');
-    }
-    return response.json();
-  },
 };

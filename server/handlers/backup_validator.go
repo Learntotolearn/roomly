@@ -228,7 +228,7 @@ func checkDatabaseCompatibility(backupPath, format string, result *ValidationRes
 	}
 
 	// 检查数据库表结构
-	expectedTables := []string{"members", "rooms", "bookings", "backup_logs"}
+	expectedTables := []string{"members", "rooms", "bookings"}
 	for _, tableName := range expectedTables {
 		if !database.DB.Migrator().HasTable(tableName) {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("当前数据库缺少 %s 表", tableName))

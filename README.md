@@ -83,7 +83,7 @@ npm run dev:all
 
 # 4. 访问应用
 # 前端：http://localhost:3000
-# 后端API：http://localhost:8090
+# 后端API：http://localhost:8080
 ```
 
 ## 🔧 配置说明
@@ -91,7 +91,7 @@ npm run dev:all
 ### 环境变量
 - `NEXT_PUBLIC_BASE_PATH`: 应用基路径（默认：`/apps/roomly`）
 - `NEXT_PUBLIC_API_URL`: API 接口地址（默认：`/apps/roomly/api`）
-- `PORT`: 后端服务端口（默认：8090）
+- `PORT`: 后端服务端口（默认：8080）
 
 ### 数据库
 系统使用 SQLite 数据库，数据文件存储在 `server/db/roomly.db`。首次运行时会自动创建数据库表和初始数据。

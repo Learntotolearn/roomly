@@ -816,7 +816,7 @@ export default function MyBookingsPage() {
 
                         <div className="text-sm text-muted-foreground">
                           <strong>录音功能: {title}</strong>
-                          <div className="space-y-4">
+                          <div className="space-y-4 mt-3">
                             <TooltipProvider>
                               <div className="flex flex-wrap gap-3 sm:gap-4" style={{ maxWidth: '100%' }}>
                                 <div className="flex flex-row gap-3 sm:gap-4 mb-2 flex-wrap">
@@ -1129,7 +1129,7 @@ export default function MyBookingsPage() {
                         
                         <div className="text-sm text-muted-foreground">
                           <strong>录音功能: {title}</strong>
-                          <div className="space-y-4">
+                          <div className="space-y-4 mt-3">
                             <TooltipProvider>
                               <div className="flex flex-wrap gap-3 sm:gap-4" style={{ maxWidth: '100%' }}>
                                 <div className="flex flex-row gap-3 sm:gap-4 mb-2 flex-wrap">
@@ -1296,7 +1296,7 @@ export default function MyBookingsPage() {
 
       {/* 会议纪要对话框 */}
       {meetingSummaryDialogOpen && currentBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl h-3/4 flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">会议纪要 - {currentBooking.room?.name}</h2>

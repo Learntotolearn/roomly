@@ -49,7 +49,6 @@ function AdminRestorePage() {
   const [selectedBackup, setSelectedBackup] = useState<BackupInfo | null>(null);
   const [restoreForm, setRestoreForm] = useState<RestoreRequest>({
     filename: '',
-    backup_before: true,
     description: ''
   });
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -316,24 +315,7 @@ function AdminRestorePage() {
               </div>
             </div>
 
-            {/* 还原前备份选项 */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <Shield className="w-5 h-5 text-blue-600" />
-                <div>
-                  <Label className="text-sm font-medium">还原前备份当前数据</Label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    推荐开启，在还原前自动备份当前数据以防意外
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={restoreForm.backup_before}
-                onCheckedChange={(checked) => 
-                  setRestoreForm(prev => ({ ...prev, backup_before: checked }))
-                }
-              />
-            </div>
+
 
             {/* 还原描述 */}
             <div>
@@ -462,12 +444,7 @@ function AdminRestorePage() {
                   <span>备份时间：</span>
                   <span>{format(new Date(selectedBackup.created_at), 'yyyy-MM-dd HH:mm:ss')}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>还原前备份：</span>
-                  <span className={restoreForm.backup_before ? 'text-green-600' : 'text-red-600'}>
-                    {restoreForm.backup_before ? '是' : '否'}
-                  </span>
-                </div>
+
                 {restoreForm.description && (
                   <div className="flex justify-between">
                     <span>操作描述：</span>

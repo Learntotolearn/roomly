@@ -51,16 +51,15 @@ RUN npm run build
 # 生产阶段
 FROM node:slim AS production
 
-# 设置工作目录
 WORKDIR /web
 
 # 复制后端构建产物
 COPY --from=backend-builder /app/server /web/server
 
 # 复制前端构建产物
-COPY --from=builder /web/.next/standalone ./
-COPY --from=builder /web/.next/static ./.next/static
-COPY --from=builder /web/public ./public
+COPY --from=builder /web/.next/standalone/ /web/
+COPY --from=builder /web/.next/static/ /web/.next/static/
+COPY --from=builder /web/public/ /web/public/
 
 # 创建启动脚本
 RUN cat <<'EOF' > /web/start.sh

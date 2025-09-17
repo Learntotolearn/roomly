@@ -162,7 +162,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
         </div>
         
         {/* 右侧：用户信息 */}
-        <div className="flex items-center gap-2 pr-22">
+        <div className="flex items-center gap-2 pr-24">
           <span className="text-sm text-gray-700 dark:text-white">欢迎，</span>
           <span
             className="text-sm text-gray-700 dark:text-white max-w-[80px] truncate"

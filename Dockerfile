@@ -58,9 +58,9 @@ WORKDIR /web
 COPY --from=backend-builder /app/server /web/server
 
 # 复制前端构建产物
-COPY --from=builder /web/.next/standalone/ /web/
-COPY --from=builder /web/.next/static/ /web/.next/static/
-COPY --from=builder /web/public/ /web/public/
+COPY --from=builder /web/.next/standalone ./
+COPY --from=builder /web/.next/static ./.next/static
+COPY --from=builder /web/public ./public
 
 # 创建启动脚本
 RUN cat <<'EOF' > /web/start.sh

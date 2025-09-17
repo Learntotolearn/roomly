@@ -343,21 +343,21 @@ function AdminRestorePage() {
                           <Users className="w-4 h-4 mr-1" />
                           会员
                         </span>
-                        <span>{restorePreview.backup_data.members_count || 0}</span>
+                        <span>{(restorePreview.backup_data as Record<string, unknown>)?.members_count as number || 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="flex items-center">
                           <Building className="w-4 h-4 mr-1" />
                           会议室
                         </span>
-                        <span>{restorePreview.backup_data.rooms_count || 0}</span>
+                        <span>{(restorePreview.backup_data as Record<string, unknown>)?.rooms_count as number || 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="flex items-center">
                           <Clock className="w-4 h-4 mr-1" />
                           预订记录
                         </span>
-                        <span>{restorePreview.backup_data.bookings_count || 0}</span>
+                        <span>{(restorePreview.backup_data as Record<string, unknown>)?.bookings_count as number || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -369,21 +369,21 @@ function AdminRestorePage() {
                           <Users className="w-4 h-4 mr-1" />
                           会员
                         </span>
-                        <span>{restorePreview.current_data.members_count || 0}</span>
+                        <span>{(restorePreview.current_data as Record<string, unknown>)?.members_count as number || 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="flex items-center">
                           <Building className="w-4 h-4 mr-1" />
                           会议室
                         </span>
-                        <span>{restorePreview.current_data.rooms_count || 0}</span>
+                        <span>{(restorePreview.current_data as Record<string, unknown>)?.rooms_count as number || 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="flex items-center">
                           <Clock className="w-4 h-4 mr-1" />
                           预订记录
                         </span>
-                        <span>{restorePreview.current_data.bookings_count || 0}</span>
+                        <span>{(restorePreview.current_data as Record<string, unknown>)?.bookings_count as number || 0}</span>
                       </div>
                     </div>
                   </div>

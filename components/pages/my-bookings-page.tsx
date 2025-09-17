@@ -312,8 +312,8 @@ export default function MyBookingsPage() {
         updateRecordingState(targetBooking.id, { analyzing: false });
       }
 
-    } catch {
-      console.error('AI分析失败');
+    } catch (error) {
+      console.error('AI分析失败:', error);
       toast.error('AI分析失败，请检查网络连接或稍后重试！');
       updateRecordingState(targetBooking.id, { analyzing: false });
     }
@@ -383,9 +383,9 @@ export default function MyBookingsPage() {
       // 成功提示
       toast.success(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
       
-    } catch {
+    } catch (error) {
       console.error('发送会议纪要通知失败:', error);
-      toast.error(`❌ 发送会议纪要通知失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      toast.error('❌ 发送会议纪要通知失败');
     }
   };
 
@@ -589,7 +589,7 @@ export default function MyBookingsPage() {
         await fetchRecordings(currentBooking.id, title);
       }
       
-    } catch {
+    } catch (error) {
       console.error('更新录音分析失败:', error);
       toast.error('更新录音分析失败，请稍后重试');
     } finally {
@@ -637,7 +637,7 @@ export default function MyBookingsPage() {
       
       setMeetingSummary(summaryContent);
       toast.success('会议纪要模板已生成');
-    } catch {
+    } catch (error) {
       console.error('生成会议纪要失败:', error);
       toast.error('生成会议纪要失败，请稍后重试');
     } finally {
@@ -687,7 +687,7 @@ export default function MyBookingsPage() {
         toast.info('未开启后端保存，已生成本地内容');
       }
       setMeetingSummaryDialogOpen(false);
-    } catch {
+    } catch (error) {
       console.error('保存会议纪要失败:', error);
       const msg = error instanceof Error ? error.message : String(error);
       toast.error(`保存会议纪要失败：${msg}`);
@@ -1006,7 +1006,7 @@ export default function MyBookingsPage() {
                           
                           // 备用方案
                           return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                        } catch {
+                        } catch (error) {
                           console.error('时间格式化错误:', error);
                           return booking.created_at;
                         }

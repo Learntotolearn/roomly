@@ -99,7 +99,7 @@ export function EnhancedTimeSlots({
     count, 
     color = 'gray' 
   }: { 
-    icon: Record<string, unknown>; 
+    icon: React.ComponentType<{ className?: string }>; 
     title: string; 
     count: number; 
     color?: 'green' | 'red' | 'gray' | 'orange';

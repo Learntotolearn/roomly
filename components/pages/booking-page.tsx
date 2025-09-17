@@ -341,7 +341,7 @@ export default function BookingPage() {
                   selectedTimeSlots={selectedTimeSlots}
                   onTimeSlotToggle={handleTimeSlotToggle}
                   formatTimeSlot={formatTimeSlot}
-                  selectedDate={selectedDate}
+
                 />
               )}
               

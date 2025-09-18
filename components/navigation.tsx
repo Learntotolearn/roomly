@@ -73,7 +73,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
                     key={item.href} 
                     className={`flex items-center py-2 px-4 my-1 text-sm rounded cursor-pointer ${
                       isActive
-                        ? 'text-lime-600 dark:text-lime-400 bg-lime-50 dark:bg-lime-900'
+                        ? 'text-lime-600 dark:text-lime-400'
                         : 'text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800'
                     }`}
                     onClick={() => {
@@ -108,7 +108,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
                 href={item.href}
                 className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
                   isActive
-                    ? 'text-lime-600 dark:text-lime-400 bg-lime-50 dark:bg-lime-900'
+                    ? 'text-lime-600 dark:text-lime-400'
                     : 'text-gray-700 dark:text-white hover:text-lime-600 dark:hover:text-lime-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
                 }`}
               >
@@ -126,7 +126,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
                   variant="ghost"
                   className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
                     isAdminPage
-                      ? 'text-lime-600 dark:text-lime-400 bg-lime-50 dark:bg-lime-900'
+                      ? 'text-lime-600 dark:text-lime-400'
                       : 'text-gray-700 dark:text-white hover:text-lime-600 dark:hover:text-lime-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
                   }`}
                 >
@@ -144,7 +144,7 @@ export default function Navigation({ isAdmin, currentMember }: NavigationProps) 
                       key={item.href}
                       className={`flex items-center py-2 px-4 my-1 text-sm rounded cursor-pointer ${
                         isActive
-                          ? 'text-lime-600 dark:text-lime-400 bg-lime-50 dark:bg-lime-900'
+                          ? 'text-lime-600 dark:text-lime-400'
                           : 'text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800'
                       }`}
                       onClick={() => {

@@ -123,11 +123,11 @@
     height: 100vh;
   }
   
-  /* 自定义滚动条样式 - 靠近浏览器边缘 */
+  /* 自定义滚动条样式 - 根据主题颜色 */
   .content-scrollable {
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
   }
   
   .content-scrollable::-webkit-scrollbar {
@@ -139,12 +139,53 @@
   }
   
   .content-scrollable::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 0;
-    border: none;
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: background-color 0.2s ease;
   }
   
-  .dark .content-scrollable::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.2);
+  .content-scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+  
+  .content-scrollable::-webkit-scrollbar-thumb:active {
+    background-color: hsl(var(--primary) / 0.6);
+  }
+  
+  /* 全局滚动条样式 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+    transition: background-color 0.2s ease;
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+  
+  *::-webkit-scrollbar-thumb:active {
+    background-color: hsl(var(--primary) / 0.6);
+  }
+  
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

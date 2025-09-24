@@ -535,28 +535,36 @@ export default function AdminRoomsPage() {
           </Table>
         </CardContent>
       </Card>
-      {/* 分页控件移到卡片外部 */}
-      <div className="flex justify-between items-center mt-4">
-        <div className="text-sm text-gray-500 dark:text-gray-300">
-          第 {page} / {Math.max(1, totalPages)} 页，共 {total} 条
+      {/* 分页控件 */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-6 p-4 bg-muted/30 rounded-lg">
+        <div className="text-sm text-muted-foreground">
+          第 {page} / {Math.max(1, totalPages)} 页，共 {total} 条记录
         </div>
-        <div className="flex gap-2 items-center">
-          <span>每页</span>
-          <select
-            className="border rounded px-2 py-1 text-sm"
-            value={pageSize}
-            onChange={e => {
-              setPage(1);
-              setPageSize(Number(e.target.value));
-            }}
-          >
-            {[10, 20, 50, 100].map(size => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
-          <span>条</span>
-          <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>上一页</Button>
-          <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))} disabled={page >= totalPages}>下一页</Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">每页</span>
+            <select
+              className="border border-input bg-background rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              value={pageSize}
+              onChange={e => {
+                setPage(1);
+                setPageSize(Number(e.target.value));
+              }}
+            >
+              {[10, 20, 50, 100].map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+            <span className="text-muted-foreground">条</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+              上一页
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(totalPages || 1, p + 1))} disabled={page >= totalPages}>
+              下一页
+            </Button>
+          </div>
         </div>
       </div>
 

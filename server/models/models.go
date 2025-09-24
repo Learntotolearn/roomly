@@ -22,24 +22,25 @@ type Room struct {
 	Description string    `json:"description"`
 	Capacity    int       `gorm:"not null" json:"capacity"`
 	IsOpen      bool      `gorm:"default:true" json:"is_open"`
+	SortOrder   int       `gorm:"default:0" json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // 预定记录模型
 type Booking struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	RoomID       uint      `gorm:"not null" json:"room_id"`
-	MemberID     uint      `gorm:"not null" json:"member_id"`
-	Date         string    `gorm:"not null" json:"date"`       // 格式: YYYY-MM-DD
-	StartTime    string    `gorm:"not null" json:"start_time"` // 格式: HH:MM
-	EndTime      string    `gorm:"not null" json:"end_time"`   // 格式: HH:MM
-	Reason       string    `gorm:"not null" json:"reason"`
-	CancelReason string    `json:"cancel_reason"`                // 取消理由
-	Status       string    `gorm:"default:active" json:"status"` // active, cancelled
-	SummaryContent string  `json:"summary_content"`              // 会议纪要内容
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	RoomID         uint      `gorm:"not null" json:"room_id"`
+	MemberID       uint      `gorm:"not null" json:"member_id"`
+	Date           string    `gorm:"not null" json:"date"`       // 格式: YYYY-MM-DD
+	StartTime      string    `gorm:"not null" json:"start_time"` // 格式: HH:MM
+	EndTime        string    `gorm:"not null" json:"end_time"`   // 格式: HH:MM
+	Reason         string    `gorm:"not null" json:"reason"`
+	CancelReason   string    `json:"cancel_reason"`                // 取消理由
+	Status         string    `gorm:"default:active" json:"status"` // active, cancelled
+	SummaryContent string    `json:"summary_content"`              // 会议纪要内容
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 
 	// 关联关系
 	Room         Room          `gorm:"foreignKey:RoomID" json:"room"`

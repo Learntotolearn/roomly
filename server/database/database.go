@@ -39,7 +39,7 @@ func seedData() {
 	DB.Model(&models.Room{}).Count(&roomCount)
 	if roomCount == 0 {
 		rooms := []models.Room{
-			{Name: "多功能会议室A", Description: "适合30人以内的团队会议，配备投影仪和白板", Capacity: 30, IsOpen: true},
+			{Name: "多功能会议室A", Description: "适合30人以内的团队会议，配备投影仪和白板", Capacity: 30, IsOpen: true, SortOrder: 1},
 		}
 		DB.Create(&rooms)
 	}

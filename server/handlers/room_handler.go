@@ -29,7 +29,7 @@ func GetRooms(c *gin.Context) {
 	db.Count(&total)
 
 	var rooms []models.Room
-	db = db.Order("id desc").Limit(pageSize).Offset((page - 1) * pageSize)
+	db = db.Order("sort_order ASC, id ASC").Limit(pageSize).Offset((page - 1) * pageSize)
 	if err := db.Find(&rooms).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch rooms"})
 		return
@@ -43,7 +43,7 @@ func GetRooms(c *gin.Context) {
 // 获取开放的会议室
 func GetOpenRooms(c *gin.Context) {
 	var rooms []models.Room
-	if err := database.DB.Where("is_open = ?", true).Find(&rooms).Error; err != nil {
+	if err := database.DB.Where("is_open = ?", true).Order("sort_order ASC, id ASC").Find(&rooms).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch open rooms"})
 		return
 	}
@@ -67,6 +67,13 @@ func CreateRoom(c *gin.Context) {
 	if err := c.ShouldBindJSON(&room); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// 如果没有设置排序值，自动设置为最大值+1
+	if room.SortOrder == 0 {
+		var maxOrder int
+		database.DB.Model(&models.Room{}).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxOrder)
+		room.SortOrder = maxOrder + 1
 	}
 
 	if err := database.DB.Create(&room).Error; err != nil {

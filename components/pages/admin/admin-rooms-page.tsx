@@ -41,7 +41,10 @@ import {
   Eye, 
   EyeOff,
   Users,
-  Loader2
+  Loader2,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw
 } from 'lucide-react';
 import { useAppContext } from '@/lib/context/app-context';
 
@@ -56,6 +59,7 @@ export default function AdminRoomsPage() {
     description: '',
     capacity: 6,
     is_open: true,
+    sort_order: 0,
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -69,13 +73,21 @@ export default function AdminRoomsPage() {
   const total: number = roomsRes?.total || 0;
   const totalPages = Math.ceil(total / pageSize);
 
+  // 获取所有会议室（用于排序操作）
+  const { data: allRoomsRes } = useQuery<{ data: Room[]; total: number }>({
+    queryKey: ['all-rooms'],
+    queryFn: () => roomApi.getAll({ page: 1, page_size: 1000 }),
+  });
+  const allRooms: Room[] = allRoomsRes?.data || [];
+
   // 创建会议室
   const createRoomMutation = useMutation({
     mutationFn: roomApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['all-rooms'] });
       setIsAddDialogOpen(false);
-      setFormData({ name: '', description: '', capacity: 6, is_open: true });
+      setFormData({ name: '', description: '', capacity: 6, is_open: true, sort_order: 0 });
     },
   });
 
@@ -85,9 +97,10 @@ export default function AdminRoomsPage() {
       roomApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['all-rooms'] });
       setIsEditDialogOpen(false);
       setSelectedRoom(null);
-      setFormData({ name: '', description: '', capacity: 6, is_open: true });
+      setFormData({ name: '', description: '', capacity: 6, is_open: true, sort_order: 0 });
     },
   });
 
@@ -96,6 +109,7 @@ export default function AdminRoomsPage() {
     mutationFn: roomApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['all-rooms'] });
     },
   });
 
@@ -107,6 +121,8 @@ export default function AdminRoomsPage() {
     },
   });
 
+
+
   // 处理添加会议室
   const handleAddRoom = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,23 +132,79 @@ export default function AdminRoomsPage() {
         description: formData.description.trim(),
         capacity: formData.capacity,
         is_open: formData.is_open,
+        sort_order: formData.sort_order,
       });
     }
   };
 
   // 处理编辑会议室
-  const handleEditRoom = (e: React.FormEvent) => {
+  const handleEditRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedRoom && formData.name.trim()) {
-      updateRoomMutation.mutate({
-        id: selectedRoom.id,
-        data: {
-          name: formData.name.trim(),
-          description: formData.description.trim(),
-          capacity: formData.capacity,
-          is_open: formData.is_open,
-        },
-      });
+      // 检查排序值是否发生变化
+      const sortOrderChanged = selectedRoom.sort_order !== formData.sort_order;
+      
+      if (sortOrderChanged && allRooms && allRooms.length > 0) {
+        // 如果排序值发生变化，需要处理排序冲突
+        const targetSortOrder = formData.sort_order;
+        const currentRoom = selectedRoom;
+        
+        // 找到目标排序值的会议室
+        const conflictRoom = allRooms.find(room => 
+          room.id !== currentRoom.id && room.sort_order === targetSortOrder
+        );
+        
+        if (conflictRoom) {
+          // 如果有冲突，交换排序值
+          try {
+            await Promise.all([
+              roomApi.update(currentRoom.id, {
+                name: formData.name.trim(),
+                description: formData.description.trim(),
+                capacity: formData.capacity,
+                is_open: formData.is_open,
+                sort_order: targetSortOrder,
+              }),
+              roomApi.update(conflictRoom.id, { 
+                sort_order: currentRoom.sort_order 
+              })
+            ]);
+            
+            // 刷新数据
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            queryClient.invalidateQueries({ queryKey: ['all-rooms'] });
+            setIsEditDialogOpen(false);
+            setSelectedRoom(null);
+            setFormData({ name: '', description: '', capacity: 6, is_open: true, sort_order: 0 });
+          } catch (error) {
+            console.error('更新会议室失败:', error);
+          }
+        } else {
+          // 没有冲突，直接更新
+          updateRoomMutation.mutate({
+            id: selectedRoom.id,
+            data: {
+              name: formData.name.trim(),
+              description: formData.description.trim(),
+              capacity: formData.capacity,
+              is_open: formData.is_open,
+              sort_order: formData.sort_order,
+            },
+          });
+        }
+      } else {
+        // 排序值没有变化，直接更新
+        updateRoomMutation.mutate({
+          id: selectedRoom.id,
+          data: {
+            name: formData.name.trim(),
+            description: formData.description.trim(),
+            capacity: formData.capacity,
+            is_open: formData.is_open,
+            sort_order: formData.sort_order,
+          },
+        });
+      }
     }
   };
 
@@ -152,6 +224,64 @@ export default function AdminRoomsPage() {
     toggleRoomStatusMutation.mutate(room.id);
   };
 
+  // 修正版上移逻辑 - 与上一个会议室交换排序值
+  const handleMoveUp = async (room: Room, index: number) => {
+    if (!allRooms || allRooms.length === 0) return;
+    
+    // 找到当前会议室在所有会议室中的位置（按排序值排序）
+    const sortedRooms = [...allRooms].sort((a, b) => a.sort_order - b.sort_order);
+    const currentIndex = sortedRooms.findIndex(r => r.id === room.id);
+    
+    if (currentIndex <= 0) return; // 已经是第一个
+    
+    const currentRoom = sortedRooms[currentIndex];
+    const previousRoom = sortedRooms[currentIndex - 1];
+    
+    try {
+      // 交换两个会议室的排序值
+      await Promise.all([
+        roomApi.update(currentRoom.id, { sort_order: previousRoom.sort_order }),
+        roomApi.update(previousRoom.id, { sort_order: currentRoom.sort_order })
+      ]);
+      
+      // 刷新数据
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['all-rooms'] });
+    } catch (error) {
+      console.error('上移失败:', error);
+    }
+  };
+
+  // 修正版下移逻辑 - 与下一个会议室交换排序值
+  const handleMoveDown = async (room: Room, index: number) => {
+    if (!allRooms || allRooms.length === 0) return;
+    
+    // 找到当前会议室在所有会议室中的位置（按排序值排序）
+    const sortedRooms = [...allRooms].sort((a, b) => a.sort_order - b.sort_order);
+    const currentIndex = sortedRooms.findIndex(r => r.id === room.id);
+    
+    if (currentIndex >= sortedRooms.length - 1) return; // 已经是最后一个
+    
+    const currentRoom = sortedRooms[currentIndex];
+    const nextRoom = sortedRooms[currentIndex + 1];
+    
+    try {
+      // 交换两个会议室的排序值
+      await Promise.all([
+        roomApi.update(currentRoom.id, { sort_order: nextRoom.sort_order }),
+        roomApi.update(nextRoom.id, { sort_order: currentRoom.sort_order })
+      ]);
+      
+      // 刷新数据
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['all-rooms'] });
+    } catch (error) {
+      console.error('下移失败:', error);
+    }
+  };
+
+
+
   // 打开编辑对话框
   const openEditDialog = (room: Room) => {
     setSelectedRoom(room);
@@ -160,6 +290,7 @@ export default function AdminRoomsPage() {
       description: room.description || '',
       capacity: room.capacity,
       is_open: room.is_open,
+      sort_order: room.sort_order || 0,
     });
     setIsEditDialogOpen(true);
   };
@@ -189,17 +320,18 @@ export default function AdminRoomsPage() {
           <p className="text-gray-600 dark:text-white">管理系统中的所有会议室</p>
         </div>
         
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              添加会议室
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>添加新会议室</DialogTitle>
-            </DialogHeader>
+        <div className="flex gap-2">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                添加会议室
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>添加新会议室</DialogTitle>
+              </DialogHeader>
             <form onSubmit={handleAddRoom} className="space-y-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="name">会议室名称</Label>
@@ -233,6 +365,17 @@ export default function AdminRoomsPage() {
                   required
                 />
               </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="sort_order">排序值</Label>
+                <Input
+                  id="sort_order"
+                  type="number"
+                  min="0"
+                  value={formData.sort_order}
+                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
+                  placeholder="数值越小排序越靠前"
+                />
+              </div>
               <div className="flex items-center space-x-2">
                 <Switch
                   id="is_open"
@@ -257,8 +400,9 @@ export default function AdminRoomsPage() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -278,20 +422,21 @@ export default function AdminRoomsPage() {
                 <TableHead>容纳人数</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>创建时间</TableHead>
+                <TableHead>排序</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rooms.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     <div className="flex items-center justify-center">
                       <p className="text-gray-500 py-4">暂无数据</p>
                     </div>
                   </TableCell>
                 </TableRow>
               )}
-              {rooms.map((room) => (
+              {rooms.map((room, index) => (
                 <TableRow key={room.id}>
                   <TableCell>{room.id}</TableCell>
                   <TableCell className="font-medium">{room.name}</TableCell>
@@ -323,6 +468,31 @@ export default function AdminRoomsPage() {
                         return room.created_at;
                       }
                     })()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-[2rem]">{room.sort_order}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleMoveUp(room, index)}
+                          title="上移"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleMoveDown(room, index)}
+                          title="下移"
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -427,6 +597,17 @@ export default function AdminRoomsPage() {
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 6 })}
                 required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-sort_order">排序值</Label>
+              <Input
+                id="edit-sort_order"
+                type="number"
+                min="0"
+                value={formData.sort_order}
+                onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
+                placeholder="数值越小排序越靠前"
               />
             </div>
             <div className="flex items-center space-x-2">

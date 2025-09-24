@@ -15,6 +15,7 @@ export interface Room {
   description: string;
   capacity: number;
   is_open: boolean;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }

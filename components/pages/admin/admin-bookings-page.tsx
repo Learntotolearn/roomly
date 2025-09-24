@@ -434,15 +434,15 @@ export default function AdminBookingsPage() {
                 <TableRow key={booking.id}>
                   <TableCell>{booking.id}</TableCell>
                   <TableCell>
-                    <div className="flex items-center">
-                      <MapPin className="w-4 h-4 mr-1 text-gray-500" />
-                      {booking.room?.name || ''}
+                    <div className="flex items-center max-w-xs">
+                      <MapPin className="w-4 h-4 mr-1 text-gray-500 flex-shrink-0" />
+                      <span className="truncate">{booking.room?.name || ''}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center">
-                      <User className="w-4 h-4 mr-1 text-gray-500" />
-                      {booking.member?.name || ''}
+                    <div className="flex items-center max-w-xs">
+                      <User className="w-4 h-4 mr-1 text-gray-500 flex-shrink-0" />
+                      <span className="truncate">{booking.member?.name || ''}</span>
                     </div>
                   </TableCell>
                   <TableCell>

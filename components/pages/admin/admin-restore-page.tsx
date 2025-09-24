@@ -244,7 +244,7 @@ function AdminRestorePage() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="font-medium text-sm truncate" title={backup.filename}>
+                          <h3 className="font-medium text-sm truncate max-w-[200px] sm:max-w-none" title={backup.filename}>
                             {backup.filename}
                           </h3>
                           {backup.description && (

@@ -52,9 +52,13 @@ export default function HomePage() {
         {rooms.map((room) => (
           <Card key={room.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{room.name}</CardTitle>
-                <Badge variant={room.is_open ? "default" : "secondary"}>
+              <div className="flex justify-between items-start gap-2">
+                <div className="text-base font-semibold leading-none overflow-hidden min-w-0 flex-1 max-w-[180px]">
+                  <div className="truncate">
+                    {room.name}
+                  </div>
+                </div>
+                <Badge variant={room.is_open ? "default" : "secondary"} className="flex-shrink-0 whitespace-nowrap">
                   {room.is_open ? "开放" : "关闭"}
                 </Badge>
               </div>
@@ -65,12 +69,12 @@ export default function HomePage() {
                 可容纳 {room.capacity} 人
               </div>
               
-              {room.description && (
-                <div className="flex items-start text-sm text-gray-600 dark:text-zinc-300">
-                  <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>{room.description}</span>
-                </div>
-              )}
+              <div className="flex items-start text-sm text-gray-600 dark:text-zinc-300">
+                <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                <span className="break-words line-clamp-3 overflow-hidden">
+                  {room.description || `适合${room.capacity}人以内的团队会议，配备基础会议设施`}
+                </span>
+              </div>
               
               <div className="pt-4 flex-1 flex flex-col justify-end">
                 <Button 

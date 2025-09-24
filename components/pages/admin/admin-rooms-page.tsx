@@ -439,8 +439,8 @@ export default function AdminRoomsPage() {
               {rooms.map((room, index) => (
                 <TableRow key={room.id}>
                   <TableCell>{room.id}</TableCell>
-                  <TableCell className="font-medium">{room.name}</TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell className="font-medium max-w-[150px] truncate">{room.name}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">
                     {room.description || '无描述'}
                   </TableCell>
                   <TableCell>

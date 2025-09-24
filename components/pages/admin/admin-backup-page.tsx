@@ -358,7 +358,7 @@ export default function AdminBackupPage() {
                   <TableBody>
                     {backupList?.backups?.map((backup) => (
                       <TableRow key={backup.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium max-w-xs truncate">
                           {backup.filename}
                         </TableCell>
                         <TableCell>
@@ -371,8 +371,8 @@ export default function AdminBackupPage() {
                         <TableCell>
                           {format(new Date(backup.created_at), 'yyyy-MM-dd HH:mm:ss')}
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                        <TableCell className="max-w-xs">
+                          <span className="text-sm text-gray-600 dark:text-gray-400 truncate block">
                             {backup.description || '无描述'}
                           </span>
                         </TableCell>

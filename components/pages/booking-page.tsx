@@ -241,9 +241,11 @@ export default function BookingPage() {
               <SelectContent>
                 {rooms?.map((room) => (
                   <SelectItem key={room.id} value={room.id.toString()}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{room.name}</span>
-                      <Badge variant="secondary" className="ml-2">
+                    <div className="flex items-center justify-between w-full min-w-0">
+                      <span className="truncate flex-1 mr-2 min-w-0 max-w-[120px] sm:max-w-none">
+                        {room.name}
+                      </span>
+                      <Badge variant="secondary" className="flex-shrink-0 text-xs">
                         {room.capacity}人
                       </Badge>
                     </div>
@@ -259,7 +261,9 @@ export default function BookingPage() {
                   可容纳 {selectedRoom.capacity} 人
                 </div>
                 {selectedRoom.description && (
-                  <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">{selectedRoom.description}</p>
+                  <p className="mt-2 text-sm text-blue-700 dark:text-blue-300 break-words line-clamp-3 overflow-hidden">
+                    {selectedRoom.description}
+                  </p>
                 )}
               </div>
             )}

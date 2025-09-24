@@ -187,7 +187,7 @@ export default function AdminMembersPage() {
               {members.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell>{member.id}</TableCell>
-                  <TableCell className="font-medium">{member.name}</TableCell>
+                  <TableCell className="font-medium max-w-xs truncate">{member.name}</TableCell>
                   <TableCell>
                     {member.is_admin && <Badge>系统管理员</Badge>}
                     {member.is_room_admin && <Badge variant="secondary">会议室管理员</Badge>}

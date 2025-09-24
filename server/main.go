@@ -36,10 +36,10 @@ func main() {
 	// 设置路由
 	r := routes.SetupRoutes()
 
-	// 获取端口，默认为8090
+	// 获取端口，默认为8080
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8090"
+		port = "8080"
 	}
 
 	// 启动服务器

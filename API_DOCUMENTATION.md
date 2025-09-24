@@ -26,7 +26,7 @@ Content-Type: application/json
 
 **请求示例：**
 ```bash
-curl -X GET "http://localhost:8090/api/users/summary?userid[]=1&userid[]=2&summary_content=会议纪要内容&date=2024-01-15&time_slots[]=09:00&time_slots[]=10:00&room_name=会议室A" \
+curl -X GET "http://localhost:8080/api/users/summary?userid[]=1&userid[]=2&summary_content=会议纪要内容&date=2024-01-15&time_slots[]=09:00&time_slots[]=10:00&room_name=会议室A" \
   -H "Authorization: Bearer your-token" \
   -H "Content-Type: application/json"
 ```

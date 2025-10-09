@@ -1122,7 +1122,7 @@ export default function MyBookingsPage() {
                         </div>
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                         {booking.cancel_reason && (<div className="text-sm text-muted-foreground"><strong>取消理由:</strong> {booking.cancel_reason}</div>)}
-                        <div className="text-sm text-muted-foreground">
+                        <div className="hidden">
                           <div className="flex items-center gap-2">
                             <strong>AI分析:</strong> 
                             <span>{selected?.analysis ? selected.analysis : '-'}</span>
@@ -1140,7 +1140,7 @@ export default function MyBookingsPage() {
                           </div>
                         </div>
                         
-                        <div className="text-sm text-muted-foreground">
+                        <div className="hidden">
                           <strong>录音功能: {title}</strong>
                           <div className="space-y-4 mt-3">
                             <TooltipProvider>

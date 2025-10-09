@@ -34,7 +34,7 @@ type DooTaskClient struct {
 }
 
 func NewDooTaskClient(token string) DooTaskClient {
-	return DooTaskClient{Client: dootask.NewClient(token, dootask.WithServer("http://127.0.0.1"))}
+	return DooTaskClient{Client: dootask.NewClient(token)}
 }
 
 func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {

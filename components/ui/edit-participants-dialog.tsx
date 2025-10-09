@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserPlus, X } from 'lucide-react';
 import { BookingUser, Booking } from '@/lib/types';
@@ -38,15 +38,21 @@ export function EditParticipantsDialog({
   onClose,
   onSave,
 }: EditParticipantsDialogProps) {
-  const [editingParticipants, setEditingParticipants] = useState<BookingUser[]>(participants);
+  // 兜底：当传入的 participants 为 null/undefined 时，使用空数组，避免在渲染时访问 length/map 报错
+  const [editingParticipants, setEditingParticipants] = useState<BookingUser[]>(Array.isArray(participants) ? participants : []);
   const [isAddingParticipants, setIsAddingParticipants] = useState(false);
+
+  // 当父组件的 participants 变化时，同步本地编辑列表（仍保留空数组兜底）
+  useEffect(() => {
+    setEditingParticipants(Array.isArray(participants) ? participants : []);
+  }, [participants]);
 
   if (!isOpen) return null;
 
   const handleAddParticipant = () => {
     setIsAddingParticipants(true);
     selectUsers({
-      value: editingParticipants.map(p => p.userid),
+      value: (editingParticipants || []).map(p => p.userid),
       multipleMax: booking.room?.capacity || 0,
       title: '选择参会人员',
       placeholder: '请选择参会人员',
@@ -145,11 +151,11 @@ export function EditParticipantsDialog({
         
         <div className="mb-6">
           <h3 className="text-sm font-medium mb-2">当前参会人员:</h3>
-          {editingParticipants.length === 0 ? (
+          {(editingParticipants || []).length === 0 ? (
             <p className="text-sm text-gray-500">暂无参会人员</p>
           ) : (
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {editingParticipants.map((user) => (
+              {(editingParticipants || []).map((user) => (
                 <div key={user.userid} className="flex items-center justify-between bg-muted p-2 rounded">
                   <span className="text-sm truncate mr-2" style={{ maxWidth: 'calc(100% - 40px)' }}>{user.nickname}</span>
                   <Button 

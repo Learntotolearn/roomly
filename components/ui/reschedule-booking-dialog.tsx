@@ -112,15 +112,13 @@ export default function RescheduleBookingDialog(props: Props) {
   const fetchSlots = useCallback(async () => {
     if (!booking?.room?.id || !date) return;
     try {
-      const url = `/api/bookings/available-slots?room_id=${booking.room.id}&date=${encodeURIComponent(date)}&exclude_booking_id=${booking.id}`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      const json = await res.json().catch(() => ({}));
+      const json = await bookingApi.getAvailableSlots(booking.room.id, date, booking.id);
       const mapped: AvailableSlots = {
-        date: json?.date ?? json?.Date ?? date,
-        time_slots: (json?.time_slots ?? json?.TimeSlots ?? []).map((s: any) => ({
-          start: s.start ?? s.Start,
-          end: s.end ?? s.End,
-          is_booked: Boolean(s.is_booked ?? s.IsBooked ?? s.isBooked),
+        date: json?.date ?? date,
+        time_slots: (json?.time_slots ?? []).map((s: any) => ({
+          start: s.start,
+          end: s.end,
+          is_booked: Boolean(s.is_booked ?? s.isBooked),
         })),
       };
       setAvailable(mapped);
@@ -134,15 +132,13 @@ export default function RescheduleBookingDialog(props: Props) {
   const refreshSlotsFor = useCallback(async (d: string) => {
     if (!booking?.room?.id) return;
     try {
-      const url = `/api/bookings/available-slots?room_id=${booking.room.id}&date=${encodeURIComponent(d)}&exclude_booking_id=${booking.id}`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      const json = await res.json().catch(() => ({}));
+      const json = await bookingApi.getAvailableSlots(booking.room.id, d, booking.id);
       const mapped: AvailableSlots = {
-        date: json?.date ?? json?.Date ?? d,
-        time_slots: (json?.time_slots ?? json?.TimeSlots ?? []).map((s: any) => ({
-          start: s.start ?? s.Start,
-          end: s.end ?? s.End,
-          is_booked: Boolean(s.is_booked ?? s.IsBooked ?? s.isBooked),
+        date: json?.date ?? d,
+        time_slots: (json?.time_slots ?? []).map((s: any) => ({
+          start: s.start,
+          end: s.end,
+          is_booked: Boolean(s.is_booked ?? s.isBooked),
         })),
       };
       setAvailable(mapped);

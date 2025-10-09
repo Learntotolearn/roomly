@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, ChevronDown } from 'lucide-react';
 import { bookingApi } from '@/lib/api';
 import { Booking } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,7 @@ export default function RescheduleBookingDialog(props: Props) {
   const [date, setDate] = useState<string>(booking?.date || format(new Date(), 'yyyy-MM-dd'));
   const [available, setAvailable] = useState<AvailableSlots | null>(null);
   const [selected, setSelected] = useState<string[]>([]); // 仅保存开始时间数组
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // 当前预定原始覆盖的 30 分钟开始刻（用于在修改时放开自身原时段的选择）
   const originalStarts = useMemo(() => {
@@ -107,30 +108,49 @@ export default function RescheduleBookingDialog(props: Props) {
     setSelected(starts);
   }, [booking]);
 
-  // 拉取可用时间段（与创建预定一致）
+  // 拉取可用时间段（携带 exclude_booking_id 避免把自身原时段标记为占用）
   const fetchSlots = useCallback(async () => {
     if (!booking?.room?.id || !date) return;
     try {
-      const res = await bookingApi.getAvailableSlots(booking.room.id, date) as unknown as AvailableSlots;
-      // 如果后端返回为 models.AvailableSlots（字段为 Date/TimeSlots），做兼容映射
+      const url = `/api/bookings/available-slots?room_id=${booking.room.id}&date=${encodeURIComponent(date)}&exclude_booking_id=${booking.id}`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const json = await res.json().catch(() => ({}));
       const mapped: AvailableSlots = {
-        date: (res as any).date ?? (res as any).Date ?? date,
-        time_slots: ((res as any).time_slots ?? (res as any).TimeSlots ?? []).map((s: any) => ({
+        date: json?.date ?? json?.Date ?? date,
+        time_slots: (json?.time_slots ?? json?.TimeSlots ?? []).map((s: any) => ({
           start: s.start ?? s.Start,
           end: s.end ?? s.End,
-          // 严格保留后端语义：统一输出 is_booked
           is_booked: Boolean(s.is_booked ?? s.IsBooked ?? s.isBooked),
         })),
       };
       setAvailable(mapped);
     } catch (e) {
       console.error('获取可用时间段失败:', e);
-      setAvailable({
-        date,
-        time_slots: [],
-      });
+      setAvailable({ date, time_slots: [] });
     }
-  }, [booking?.room?.id, date]);
+  }, [booking?.room?.id, booking?.id, date]);
+
+  // 立即按指定日期刷新（用于选择时立即刷新）
+  const refreshSlotsFor = useCallback(async (d: string) => {
+    if (!booking?.room?.id) return;
+    try {
+      const url = `/api/bookings/available-slots?room_id=${booking.room.id}&date=${encodeURIComponent(d)}&exclude_booking_id=${booking.id}`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const json = await res.json().catch(() => ({}));
+      const mapped: AvailableSlots = {
+        date: json?.date ?? json?.Date ?? d,
+        time_slots: (json?.time_slots ?? json?.TimeSlots ?? []).map((s: any) => ({
+          start: s.start ?? s.Start,
+          end: s.end ?? s.End,
+          is_booked: Boolean(s.is_booked ?? s.IsBooked ?? s.isBooked),
+        })),
+      };
+      setAvailable(mapped);
+    } catch (e) {
+      console.error('立即刷新可用时间段失败:', e);
+      setAvailable({ date: d, time_slots: [] });
+    }
+  }, [booking?.room?.id, booking?.id]);
 
   useEffect(() => { if (isOpen) fetchSlots(); }, [isOpen, fetchSlots]);
   useEffect(() => { fetchSlots(); }, [date, fetchSlots]);
@@ -211,19 +231,27 @@ export default function RescheduleBookingDialog(props: Props) {
   // UI
   if (!isOpen) return null;
 
-  // 简易日期选择器（保持与项目风格一致，使用原生输入以降低依赖）
+  // 深色胶囊样式的日期选择器（YYYY-MM-DD 星期几，今天 ▼）
   const renderDatePicker = (
     <div className="space-y-3">
-      <div className="flex items-center text-sm text-muted-foreground">
-        <CalendarIcon className="w-4 h-4 mr-2" />
-        当前日期：{format(new Date(date), 'yyyy年MM月dd日', { locale: zhCN })}
-      </div>
-      <Popover>
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        {/* 顶部标签：日历图标 + 选择日期 */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <CalendarIcon className="w-4 h-4" />
+          <span>选择日期</span>
+        </div>
         <PopoverTrigger asChild>
-          <Button variant="outline" className="justify-start">
-            <CalendarIcon className="w-4 h-4 mr-2" />
-            {format(new Date(date), 'yyyy/MM/dd', { locale: zhCN })}
-          </Button>
+          <button
+            className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-xs bg-white/10 hover:bg-white/15 text-foreground"
+            aria-label="选择日期"
+          >
+            <span className="">{format(new Date(date), 'yyyy-MM-dd')}</span>
+            <span className="text-muted-foreground">
+              {format(new Date(date), 'EEEE', { locale: zhCN })}
+              {format(new Date(), 'yyyy-MM-dd') === date ? '，今天' : ''}
+            </span>
+            <ChevronDown className="w-4 h-4 opacity-80" />
+          </button>
         </PopoverTrigger>
         <PopoverContent className="p-2 w-auto">
           <Calendar
@@ -234,6 +262,10 @@ export default function RescheduleBookingDialog(props: Props) {
               const iso = format(d, 'yyyy-MM-dd');
               setDate(iso);
               setSelected([]);
+              // 立即刷新对应日期的时间段
+              void refreshSlotsFor(iso);
+              // 选中后关闭日历弹窗
+              setPickerOpen(false);
             }}
           />
         </PopoverContent>

@@ -16,6 +16,7 @@ import { Booking, BookingUser } from '@/lib/types';
 import { calculateDuration, formatDuration } from '@/lib/utils';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
+import RescheduleBookingDialog from '@/components/ui/reschedule-booking-dialog';
 import { EditParticipantsDialog } from '@/components/ui/edit-participants-dialog';
 import { toast } from "sonner";
 
@@ -62,6 +63,10 @@ export default function MyBookingsPage() {
   const [editParticipantsDialogOpen, setEditParticipantsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [isUpdatingParticipants, setIsUpdatingParticipants] = useState(false);
+  // 修改时间弹窗
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
+  const [isRescheduling, setIsRescheduling] = useState(false);
   
   // 会议纪要弹窗
   const [meetingSummaryDialogOpen, setMeetingSummaryDialogOpen] = useState(false);
@@ -513,6 +518,37 @@ export default function MyBookingsPage() {
     setEditParticipantsDialogOpen(true);
   };
 
+  // 打开修改时间对话框（仅有效预定）
+  const handleOpenReschedule = (booking: Booking) => {
+    if (booking.status !== 'active') {
+      toast.error('仅可修改有效预定');
+      return;
+    }
+    setReschedulingBooking(booking);
+    setRescheduleDialogOpen(true);
+  };
+
+  // 提交修改时间
+  const handleConfirmReschedule = async (date: string, timeSlots: string[]) => {
+    if (!reschedulingBooking) return;
+    setIsRescheduling(true);
+    try {
+      await bookingApi.reschedule(reschedulingBooking.id, { date, time_slots: timeSlots });
+      queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['available-slots'] });
+      await reloadAllBookings();
+      setRescheduleDialogOpen(false);
+      setReschedulingBooking(null);
+      toast.success('预定时间已更新');
+    } catch (error) {
+      console.error('修改时间失败:', error);
+      toast.error('修改时间失败，请检查冲突或稍后重试');
+      throw error; // 让弹窗内部也能捕获并提示
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
   // 保存参会人员更新
   const handleSaveParticipants = (participants: BookingUser[]) => {
     if (!editingBooking) return;
@@ -943,6 +979,17 @@ export default function MyBookingsPage() {
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>编辑参会人员</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                onClick={() => handleOpenReschedule(booking)}
+                                className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-blue-100 flex items-center justify-center"
+                              >
+                                <Clock className="w-4 h-4 text-blue-600" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>修改时间</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                         <Badge 
@@ -1384,6 +1431,17 @@ export default function MyBookingsPage() {
           isUpdating={isUpdatingParticipants}
           onClose={() => setEditParticipantsDialogOpen(false)}
           onSave={handleSaveParticipants}
+        />
+      )}
+
+      {/* 修改时间对话框 */}
+      {reschedulingBooking && (
+        <RescheduleBookingDialog
+          booking={reschedulingBooking}
+          isOpen={rescheduleDialogOpen}
+          isUpdating={isRescheduling}
+          onClose={() => setRescheduleDialogOpen(false)}
+          onConfirm={handleConfirmReschedule}
         />
       )}
     </div>

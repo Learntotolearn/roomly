@@ -61,7 +61,8 @@ func SetupRoutes() *gin.Engine {
 			bookings.GET("", handlers.GetBookings)
 			bookings.POST("", handlers.CreateBooking)
 			bookings.PUT("/:id/cancel", handlers.CancelBooking)
-			bookings.PUT("/:id/users", handlers.UpdateBookingUsers) // 新增：更新预定参会人员
+			bookings.PUT("/:id/users", handlers.UpdateBookingUsers)     // 新增：更新预定参会人员
+			bookings.PUT("/:id/reschedule", handlers.RescheduleBooking) // 新增：修改预定时间
 			bookings.GET("/available-slots", handlers.GetAvailableSlots)
 			bookings.POST("/:id/summary", handlers.SaveMeetingSummary)
 			bookings.GET("/:id/summary", handlers.GetMeetingSummary)

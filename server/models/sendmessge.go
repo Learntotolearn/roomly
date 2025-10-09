@@ -34,7 +34,7 @@ type DooTaskClient struct {
 }
 
 func NewDooTaskClient(token string) DooTaskClient {
-	return DooTaskClient{Client: dootask.NewClient(token)}
+	return DooTaskClient{Client: dootask.NewClient(token, dootask.WithServer("http://127.0.0.1"))}
 }
 
 func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
@@ -104,9 +104,25 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 		if summaryContent != "" {
 			summarySection = fmt.Sprintf("\n\n### **会议纪要内容**\n%s", summaryContent)
 		}
-		
+
 		msg = fmt.Sprintf(`%s
 `, summarySection)
+	case "reschedule":
+		// 会议时间变更提醒（目前仅展示新时间；如需旧→新，请在 msgContent[0] 传入旧时间）
+		// 预留变更理由：使用 reason 字段（若需要专门的“变更理由”，可在后端调用时传入自定义内容）
+		reasonSection := ""
+		if reason != "" {
+			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
+		}
+		msg = fmt.Sprintf(`## 🔄  会议时间变更通知
+### **您参与的会议时间已更新，请留意新的安排**
+
+- **会议室**：%s
+- **新的会议时间**：%s
+- **参会人员**：%s
+- **会议发起人**：%s%s
+
+> 若您无法按新时间参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, nickname, reasonSection)
 	default:
 		// 添加预定理由到会议提醒消息中
 		reasonSection := ""
@@ -172,6 +188,19 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 - **会议室**：%s
 - **原定时间**：%s
 - **会议室预定人**：%s%s`, roomName, meetingTime, nickname, cancelReasonSection)
+		case "reschedule":
+			// 会议室预定变更提醒
+			reasonSection := ""
+			if reason != "" {
+				reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
+			}
+			adminMsg = fmt.Sprintf(`## 🔄  会议室预定变更提醒
+### **会议室预定时间已更新，请关注。**
+
+- **会议室**：%s
+- **新的时间**：%s
+- **会议室预定人**：%s%s
+`, roomName, meetingTime, nickname, reasonSection)
 		default:
 			// 添加预定理由到管理员通知消息中
 			reasonSection := ""

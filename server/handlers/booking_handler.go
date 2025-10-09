@@ -142,10 +142,10 @@ func GetRoomBookings(c *gin.Context) {
 
 // 获取指定日期和会议室的可用时间段
 func GetAvailableSlots(c *gin.Context) {
-	roomID := c.Query("room_id")
+	roomIDStr := c.Query("room_id")
 	date := c.Query("date")
 
-	if roomID == "" || date == "" {
+	if roomIDStr == "" || date == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id and date are required"})
 		return
 	}
@@ -156,11 +156,32 @@ func GetAvailableSlots(c *gin.Context) {
 		return
 	}
 
-	// 获取该日期该会议室的所有预定
+	// 解析 room_id 为数值，避免类型不匹配导致查询不到占用记录
+	rid, err := strconv.Atoi(roomIDStr)
+	if err != nil || rid <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room_id"})
+		return
+	}
+
+	// 获取该日期该会议室的所有预定（可选：排除当前预定，用于修改时间不把自身标记为占用）
 	var bookings []models.Booking
-	if err := database.DB.Where("room_id = ? AND date = ? AND status = ?", roomID, date, "active").Find(&bookings).Error; err != nil {
+	excludeIDStr := c.Query("exclude_booking_id")
+	// DEBUG: 请求参数
+	fmt.Printf("[AvailableSlots DEBUG] rid=%d date=%s exclude_booking_id=%s\n", rid, date, excludeIDStr)
+	db := database.DB.Where("room_id = ? AND date = ? AND status = ?", rid, date, "active")
+	if excludeIDStr != "" {
+		if excludeID, err := strconv.Atoi(excludeIDStr); err == nil && excludeID > 0 {
+			db = db.Where("id <> ?", excludeID)
+		}
+	}
+	if err := db.Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
 		return
+	}
+	// DEBUG: 打印当天该房间的 active 预定列表
+	for _, b := range bookings {
+		fmt.Printf("[AvailableSlots DEBUG] booking_id=%d room_id=%d date=%s start=%s end=%s status=%s\n",
+			b.ID, b.RoomID, b.Date, b.StartTime, b.EndTime, b.Status)
 	}
 
 	// 生成所有可能的时间段（24小时，每30分钟一个时间段）
@@ -168,6 +189,19 @@ func GetAvailableSlots(c *gin.Context) {
 
 	// 标记已被预定的时间段
 	slotsWithBookingStatus := markBookedSlots(allSlots, bookings)
+
+	// DEBUG: 统计被标记为占用的时段数量，并重点打印 23:30 这一格
+	bookedCount := 0
+	slot2330Booked := "N/A"
+	for _, s := range slotsWithBookingStatus {
+		if s.IsBooked {
+			bookedCount++
+		}
+		if s.Start == "23:30" {
+			slot2330Booked = fmt.Sprintf("%v", s.IsBooked)
+		}
+	}
+	fmt.Printf("[AvailableSlots DEBUG] bookedCount=%d slot[23:30].is_booked=%s (date=%s room_id=%s)\n", bookedCount, slot2330Booked, date, c.Query("room_id"))
 
 	c.JSON(http.StatusOK, models.AvailableSlots{
 		Date:      date,
@@ -280,6 +314,115 @@ func CreateBooking(c *gin.Context) {
 	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", request.Reason, attendees, "")
 
 	c.JSON(http.StatusCreated, booking)
+}
+
+/*
+*
+修改预定时间（仅 active 状态允许）
+请求体：{ "date": "YYYY-MM-DD", "time_slots": ["HH:MM", ...] } （连续的30分钟刻）
+规则：
+- 验证日期格式与连续性
+- 冲突检测：排除自身预定，与同房间同日期的其它 active 预定不重叠
+*/
+func RescheduleBooking(c *gin.Context) {
+	id := c.Param("id")
+
+	var payload struct {
+		Date      string   `json:"date" binding:"required"`
+		TimeSlots []string `json:"time_slots" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	// 验证日期
+	if _, err := time.Parse("2006-01-02", payload.Date); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, use YYYY-MM-DD"})
+		return
+	}
+	// 验证连续性
+	if !areTimeSlotsConsecutive(payload.TimeSlots) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Time slots must be consecutive"})
+		return
+	}
+
+	// 查询原预定
+	var booking models.Booking
+	if err := database.DB.Preload("Room").Preload("Member").Preload("BookingUsers").First(&booking, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+	// 仅 active 允许修改
+	if booking.Status != "active" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only active bookings can be rescheduled"})
+		return
+	}
+
+	// 检查新时间段是否可用（排除自身）
+	if !areSlotsAvailableExcludeBooking(booking.RoomID, payload.Date, payload.TimeSlots, booking.ID) {
+		c.JSON(http.StatusConflict, gin.H{"error": "Time slots conflict"})
+		return
+	}
+
+	// 计算新开始/结束时间
+	startTime := payload.TimeSlots[0]
+	endTime := getEndTime(payload.TimeSlots[len(payload.TimeSlots)-1])
+
+	// 更新
+	booking.Date = payload.Date
+	booking.StartTime = startTime
+	booking.EndTime = endTime
+
+	if err := database.DB.Save(&booking).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update booking"})
+		return
+	}
+
+	// 返回包含关联数据
+	database.DB.Preload("Room").Preload("Member").Preload("BookingUsers").First(&booking, booking.ID)
+
+	// 修改时间成功后，重新发送会议通知（变更提醒）
+	// 收集参会人员 userIDs
+	var userIDs []int
+	for _, user := range booking.BookingUsers {
+		userIDs = append(userIDs, int(user.Userid))
+	}
+	// 收集会议室管理员 dootask_id
+	var adminIDs []int
+	var admins []models.Member
+	database.DB.Where("is_room_admin = ?", true).Find(&admins)
+	for _, admin := range admins {
+		adminIDs = append(adminIDs, int(admin.DootaskID))
+	}
+	// 从 header 获取 token
+	authHeader := c.GetHeader("Authorization")
+	var token string
+	if len(authHeader) > 0 {
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		} else {
+			token = authHeader
+		}
+	}
+	// 会议室名称
+	roomName := ""
+	if booking.Room.Name != "" {
+		roomName = booking.Room.Name
+	}
+	// 参会人昵称拼接
+	var attendeeNames []string
+	for _, user := range booking.BookingUsers {
+		attendeeNames = append(attendeeNames, user.Nickname)
+	}
+	attendees := strings.Join(attendeeNames, "、")
+	// 时间段数组
+	timeSlots := []string{booking.StartTime, booking.EndTime}
+	// 异步发送“时间变更”通知
+	if len(userIDs) > 0 {
+		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "reschedule", booking.Reason, attendees, "")
+	}
+
+	c.JSON(http.StatusOK, booking)
 }
 
 // 取消预定
@@ -459,6 +602,30 @@ func areTimeSlotsConsecutive(timeSlots []string) bool {
 		}
 	}
 
+	return true
+}
+
+// 检查时间段是否可用（排除指定 bookingID）
+func areSlotsAvailableExcludeBooking(roomID uint, date string, timeSlots []string, excludeBookingID uint) bool {
+	// 获取该日期该会议室的所有 active 预定（排除自身）
+	var bookings []models.Booking
+	if err := database.DB.
+		Where("room_id = ? AND date = ? AND status = ? AND id <> ?", roomID, date, "active", excludeBookingID).
+		Find(&bookings).Error; err != nil {
+		return false
+	}
+
+	for _, slotTime := range timeSlots {
+		slot := models.TimeSlot{
+			Start: slotTime,
+			End:   getEndTime(slotTime),
+		}
+		for _, booking := range bookings {
+			if isTimeSlotOverlap(slot, booking) {
+				return false
+			}
+		}
+	}
 	return true
 }
 

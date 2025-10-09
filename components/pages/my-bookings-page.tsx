@@ -1309,8 +1309,8 @@ export default function MyBookingsPage() {
 
       {/* 会议纪要对话框 */}
       {meetingSummaryDialogOpen && currentBooking && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl h-3/4 flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card text-card-foreground rounded-lg p-6 w-full max-w-4xl h-3/4 flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">会议纪要 - {currentBooking.room?.name}</h2>
               <button
@@ -1356,7 +1356,7 @@ export default function MyBookingsPage() {
                 value={meetingSummary}
                 onChange={(e) => setMeetingSummary(e.target.value)}
                 placeholder="请输入会议纪要内容..."
-                className="w-full h-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full h-full p-4 border border-border rounded-lg resize-none bg-background text-foreground"
                 style={{ fontFamily: 'monospace' }}
               />
             </div>

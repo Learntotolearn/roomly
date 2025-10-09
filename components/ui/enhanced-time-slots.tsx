@@ -81,13 +81,11 @@ export function EnhancedTimeSlots({
         onClick={() => !isDisabled && onTimeSlotToggle(slot.start)}
         disabled={isDisabled}
       >
-        <div className="flex items-center justify-center w-full relative">
+        <div className="flex items-center justify-center w-full relative pr-2 sm:pr-0">
           <span className="font-medium text-sm text-center">
             {formatTimeSlot(slot.start)}
           </span>
-          {category === 'available' && (
-            <CheckCircle2 className={cn('w-4 h-4 transition-opacity absolute right-0', isSelected ? 'opacity-100 text-green-600' : 'opacity-0')} />
-          )}
+
         </div>
       </Button>
     );

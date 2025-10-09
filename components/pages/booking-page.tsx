@@ -39,6 +39,19 @@ export default function BookingPage() {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
+  // 默认将当前用户加入参会人员（仅在新建流程且当前未选择任何参会者时）
+  useEffect(() => {
+    if (selectedTimeSlots.length > 0 && participantUserIds.length === 0 && participantUsers.length === 0) {
+      getUserInfo()
+        .then((user) => {
+          if (!user || typeof user.userid !== 'number') return;
+          setParticipantUserIds([user.userid]);
+          setParticipantUsers([{ userid: user.userid, nickname: user.nickname }]);
+        })
+        .catch(() => {});
+    }
+  }, [selectedTimeSlots.length, participantUserIds.length, participantUsers.length]);
+
   // 从URL参数获取房间ID（保留以防URL参数变化）
   useEffect(() => {
     const roomId = searchParams.get('room');

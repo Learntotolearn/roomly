@@ -265,10 +265,19 @@ export default function RescheduleBookingDialog(props: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card text-card-foreground rounded-lg p-6 w-full max-w-3xl">
+      <div className="bg-card text-card-foreground rounded-lg p-6 w-full max-w-3xl mx-4 sm:mx-0">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold">修改预定时间</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">×</button>
+          <button
+            onClick={onClose}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/20"
+            aria-label="关闭"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18"></path>
+              <path d="M6 6l12 12"></path>
+            </svg>
+          </button>
         </div>
 
         <div className="space-y-6">
@@ -276,37 +285,39 @@ export default function RescheduleBookingDialog(props: Props) {
 
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">选择连续时间段</div>
-            <div className="max-h-72 overflow-auto p-3 border rounded-2xl">
-              <EnhancedTimeSlots
-                slots={(available?.time_slots || [])
-                  .map(slot => {
-                    // 按服务端字段展示：已预定置灰，可用显示在“可选时间段”分区
-                    const start = (slot as any).start;
-                    const end = (slot as any).end;
-                    // 基于服务端占用标记，并对“当前预定原时段”进行前端放开（允许选择自身原时段）
-                    let is_booked = Boolean((slot as any).is_booked ?? (slot as any).IsBooked ?? (slot as any).isBooked);
-                    if (booking && date === booking.date && start && originalStarts.includes(start)) {
-                      is_booked = false;
-                    }
+            <div className="border rounded-2xl overflow-hidden">
+              <div className="max-h-72 overflow-auto p-3">
+                <EnhancedTimeSlots
+                  slots={(available?.time_slots || [])
+                    .map(slot => {
+                      // 按服务端字段展示：已预定置灰，可用显示在“可选时间段”分区
+                      const start = (slot as any).start;
+                      const end = (slot as any).end;
+                      // 基于服务端占用标记，并对“当前预定原时段”进行前端放开（允许选择自身原时段）
+                      let is_booked = Boolean((slot as any).is_booked ?? (slot as any).IsBooked ?? (slot as any).isBooked);
+                      if (booking && date === booking.date && start && originalStarts.includes(start)) {
+                        is_booked = false;
+                      }
 
-                    // 计算是否为过去时间（仅当天计算）
-                    const today = format(new Date(), 'yyyy-MM-dd');
-                    const isToday = date === today;
-                    let isPastTime = false;
-                    if (isToday && start) {
-                      const now = new Date();
-                      const [slotHours, slotMinutes] = String(start).split(':').map(Number);
-                      let endHours = slotHours;
-                      let endMinutes = slotMinutes + 30;
-                      if (endMinutes >= 60) { endMinutes -= 60; endHours += 1; }
-                      isPastTime = now.getHours() > endHours || (now.getHours() === endHours && now.getMinutes() >= endMinutes);
-                    }
-                    return { start, end, is_booked, isPastTime } as any;
-                  })}
-                selectedTimeSlots={orderedSelected}
-                onTimeSlotToggle={handleTimeSlotToggle}
-                formatTimeSlot={formatTimeSlot}
-              />
+                      // 计算是否为过去时间（仅当天计算）
+                      const today = format(new Date(), 'yyyy-MM-dd');
+                      const isToday = date === today;
+                      let isPastTime = false;
+                      if (isToday && start) {
+                        const now = new Date();
+                        const [slotHours, slotMinutes] = String(start).split(':').map(Number);
+                        let endHours = slotHours;
+                        let endMinutes = slotMinutes + 30;
+                        if (endMinutes >= 60) { endMinutes -= 60; endHours += 1; }
+                        isPastTime = now.getHours() > endHours || (now.getHours() === endHours && now.getMinutes() >= endMinutes);
+                      }
+                      return { start, end, is_booked, isPastTime } as any;
+                    })}
+                  selectedTimeSlots={orderedSelected}
+                  onTimeSlotToggle={handleTimeSlotToggle}
+                  formatTimeSlot={formatTimeSlot}
+                />
+              </div>
             </div>
             <div className="text-sm text-muted-foreground mt-2">
               已选时段：{selectedStart && selectedEnd ? `${selectedStart} - ${selectedEnd}` : '-'}

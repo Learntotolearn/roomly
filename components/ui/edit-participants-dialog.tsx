@@ -99,8 +99,8 @@ export function EditParticipantsDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto relative">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card text-card-foreground rounded-lg p-6 w-full max-w-md mx-auto relative">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">编辑参会人员</h2>
           <button
@@ -150,7 +150,7 @@ export function EditParticipantsDialog({
           ) : (
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {editingParticipants.map((user) => (
-                <div key={user.userid} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                <div key={user.userid} className="flex items-center justify-between bg-muted p-2 rounded">
                   <span className="text-sm truncate mr-2" style={{ maxWidth: 'calc(100% - 40px)' }}>{user.nickname}</span>
                   <Button 
                     variant="ghost" 

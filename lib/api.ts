@@ -16,7 +16,9 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   });
 
   if (!response.ok) {
-    throw new Error(`API call failed: ${response.statusText}`);
+    const text = await response.text().catch(() => '');
+    // 抛出包含状态码与返回文本的错误，便于前端区分 409 冲突等
+    throw new Error(`API ${response.status} ${response.statusText}${text ? `: ${text}` : ''}`);
   }
 
   return response.json();
@@ -232,9 +234,30 @@ export const bookingApi = {
     return response.json();
   },
 
-  // 获取可用时间段
-  getAvailableSlots: (roomId: number, date: string) =>
-    apiCall<AvailableSlots>(`/bookings/available-slots?room_id=${roomId}&date=${date}`),
+  // 获取可用时间段（支持排除某个预定ID，用于修改时间时不把自身标记为占用）
+  getAvailableSlots: (roomId: number, date: string, excludeBookingId?: number) => {
+    const base = `/bookings/available-slots?room_id=${roomId}&date=${date}`;
+    const url = excludeBookingId ? `${base}&exclude_booking_id=${excludeBookingId}` : base;
+    return apiCall<AvailableSlots>(url);
+  },
+
+  // 修改预定时间
+  reschedule: async (id: number, payload: { date: string; time_slots: string[] }) => {
+    let token = '';
+    try {
+      const userInfo = await getUserInfo();
+      token = userInfo?.token || '';
+    } catch {
+      token = localStorage.getItem('token') || '';
+    }
+    return apiCall<Booking>(`/bookings/${id}/reschedule`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  },
 
   // 保存会议纪要（外部录音服务）：优先按 groupId 更新；否则按 groupName upsert
   saveMeetingSummary: async (

@@ -91,7 +91,7 @@ func (d *DooTaskClient) CreateGroupAndSendNotification(userIDs []int, roomName s
 - **会议时间**：%s
 - **参会人员**：%s%s
 
-> 会议结束后，系统将自动发送会议结束通知。`, roomName, meetingTime, attendees, reasonSection)
+> 若您无法参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, reasonSection)
 
 	// 发送群组通知
 	if err := d.sendGroupNotice(groupInfo.ID, notificationMsg); err != nil {

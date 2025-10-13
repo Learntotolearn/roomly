@@ -426,11 +426,14 @@ export default function BookingPage() {
         {selectedTimeSlots.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>预定理由</CardTitle>
+              <CardTitle className="flex items-center">
+                预定理由
+                <span className="text-red-500 ml-1">*</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="请输入预定理由..."
+                placeholder="请输入预定理由（必填）"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="min-h-[100px]"

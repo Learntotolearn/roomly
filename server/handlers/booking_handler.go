@@ -613,8 +613,13 @@ func CancelBooking(c *gin.Context) {
 	if booking.Room.Name != "" {
 		roomName = booking.Room.Name
 	}
-	// 组装时间段
-	timeSlots := []string{booking.StartTime, booking.EndTime}
+	// 拼接参会人昵称
+	var attendeeNames []string
+	for _, u := range booking.BookingUsers {
+		attendeeNames = append(attendeeNames, u.Nickname)
+	}
+	attendees := strings.Join(attendeeNames, "、")
+
 	// 获取 token
 	authHeader := c.GetHeader("Authorization")
 	var token string
@@ -627,14 +632,14 @@ func CancelBooking(c *gin.Context) {
 	}
 	// 发送取消通知（消息内容由 sendmessge.go 内部组装）
 	if len(userIDs) > 0 {
-		// 获取所有参会用户昵称
-		var attendeeNames []string
-		for _, user := range booking.BookingUsers {
-			attendeeNames = append(attendeeNames, user.Nickname)
-		}
-		attendees := strings.Join(attendeeNames, "、")
+		// 在会议群组内发送“会议已取消”的通知
 
-		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "cancel", booking.Reason, attendees, request.CancelReason)
+		go func() {
+			if booking.DialogID > 0 {
+				meetingTime := fmt.Sprintf("%s %s-%s", booking.Date, booking.StartTime, booking.EndTime)
+				_ = models.SendCancelNotifications(booking.DialogID, roomName, meetingTime, attendees, request.CancelReason, token, adminIDs)
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})

@@ -360,7 +360,10 @@ export default function RescheduleBookingDialog(props: Props) {
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium mb-1">时间变更理由</label>
+          <label className="block text-sm font-medium mb-1">
+            时间变更理由
+            <span className="text-red-500 ml-1">*</span>
+          </label>
           <textarea
             value={changeReason}
             onChange={(e) => setChangeReason(e.target.value)}

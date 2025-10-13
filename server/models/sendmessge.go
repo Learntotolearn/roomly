@@ -123,6 +123,83 @@ func (d *DooTaskClient) SendMeetingEndNotification(dialogID int) error {
 	return d.sendGroupNotice(dialogID, "会议结束")
 }
 
+// SendCancelNotifications 在群组内发送取消通知（Markdown）与“会议已取消”Notice，并给管理员发送机器人提醒
+func SendCancelNotifications(dialogID int, roomName string, meetingTime string, attendees string, cancelReason string, token string, adminIDs []int) error {
+	if dialogID <= 0 {
+		return errors.New("invalid dialogID")
+	}
+
+	dt := NewDooTaskClient(token)
+
+	reasonSection := ""
+	cancelReason = strings.TrimSpace(cancelReason)
+	if cancelReason != "" {
+		reasonSection = fmt.Sprintf("\n- 取消理由：%s", cancelReason)
+	}
+
+	// 1) 群组文本消息：会议取消通知（Markdown）
+	cancelMsg := fmt.Sprintf(`## ❌  会议取消通知
+### **您参与的会议已被取消** 
+
+- **会议室**：%s
+- **原定时间**：%s
+- **参会人员**：%s%s
+`, roomName, meetingTime, attendees, reasonSection)
+	if err := dt.Client.SendMessage(dootask.SendMessageRequest{
+		DialogID: dialogID,
+		Text:     cancelMsg,
+	}); err != nil {
+		return fmt.Errorf("发送群组取消通知失败: %v", err)
+	}
+
+	// 2) 群组 Notice：会议已取消
+	notice := "会议已取消"
+	if err := dt.Client.SendNoticeMessage(dootask.SendNoticeMessageRequest{
+		DialogID: dialogID,
+		Notice:   notice,
+	}); err != nil {
+		return fmt.Errorf("发送群组取消Notice失败: %v", err)
+	}
+
+	// 3) 管理员机器人通知：会议取消提醒
+	// 获取预定者昵称（用于文案）
+	bookerName := ""
+	u, uErr := dt.Client.GetUserInfo()
+	if uErr == nil && u.Nickname != "" {
+		bookerName = u.Nickname
+		if u.Profession != "" {
+			bookerName = bookerName + " (" + u.Profession + ")"
+		}
+	}
+	adminMsg := fmt.Sprintf(`## ❌  会议室预定取消提醒
+### **有会议室预定被取消，请关注。**
+
+- **会议室**：%s
+- **原定时间**：%s
+- **会议室预定人**：%s%s`, roomName, meetingTime, bookerName, reasonSection)
+
+	// 机器人 token：优先 MEETING_BOT_TOKEN，无则回退当前 token
+	botToken := os.Getenv("MEETING_BOT_TOKEN")
+	if botToken == "" {
+		botToken = token
+	}
+	adminClient := NewDooTaskClient(botToken)
+
+	seen := make(map[int]struct{})
+	for _, adminID := range adminIDs {
+		if _, ok := seen[adminID]; ok {
+			continue
+		}
+		seen[adminID] = struct{}{}
+		if err := adminClient.SendBotMessage(uint(adminID), adminMsg); err != nil {
+			// 不中断主流程，记录错误
+			fmt.Printf("管理员机器人消息发送失败: adminID=%d, err=%v\n", adminID, err)
+		}
+	}
+
+	return nil
+}
+
 // CreateGroupAndNotify 创建群组并发送会议通知（替代原来的机器人通知）
 func CreateGroupAndNotify(userIDs []int, token string, date string, timeSlots []string, roomName string, reason string, attendees string) (int, error) {
 	client := NewDooTaskClient(token)

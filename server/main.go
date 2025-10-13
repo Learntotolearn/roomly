@@ -24,22 +24,21 @@ func main() {
 	// 修复错误标记为过期的预订
 	FixWronglyExpiredBookings()
 
-	// 注释：移除定时任务，改为API查询时实时检查
-	// 实时检查逻辑已集成到 handlers/booking_realtime.go 中
-	// go func() {
-	//	for {
-	//		UpdateExpiredBookings()
-	//		time.Sleep(5 * time.Minute)
-	//	}
-	// }()
+	// 启动定时任务检查会议过期并发送结束通知
+	go func() {
+		for {
+			UpdateExpiredBookings()
+			time.Sleep(1 * time.Minute) // 每分钟检查一次
+		}
+	}()
 
 	// 设置路由
 	r := routes.SetupRoutes()
 
-	// 获取端口，默认为8080
+	// 获取端口，默认为8090
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8090"
 	}
 
 	// 启动服务器
@@ -134,7 +133,7 @@ func FixWronglyExpiredBookings() {
 
 }
 
-// 定时任务：将已过期的active预定状态更新为expired
+// 定时任务：将已过期的active预定状态更新为expired，并发送会议结束通知
 func UpdateExpiredBookings() {
 	// 获取上海时区的当前时间
 	loc, err := time.LoadLocation("Asia/Shanghai")
@@ -157,10 +156,49 @@ func UpdateExpiredBookings() {
 
 		// 检查是否已过期（使用相同时区进行比较）
 		if endTime.Before(now) || endTime.Equal(now) {
+			// 如果状态还是active，说明刚刚过期，需要发送会议结束通知
+			if booking.Status == "active" {
+				// 发送会议结束通知
+				go sendMeetingEndNotification(booking)
+			}
 			booking.Status = "expired"
 			database.DB.Save(&booking)
 			expiredCount++
 		}
 	}
 
+	if expiredCount > 0 {
+		log.Printf("更新了 %d 个过期会议状态", expiredCount)
+	}
+}
+
+// sendMeetingEndNotification 发送会议结束通知
+func sendMeetingEndNotification(booking models.Booking) {
+	// 检查是否有群组ID
+	if booking.DialogID == 0 {
+		log.Printf("会议ID %d 没有群组ID，跳过发送结束通知", booking.ID)
+		return
+	}
+
+	// 获取会议发起人的token（这里需要从数据库获取，暂时使用空字符串）
+	// 在实际应用中，应该从Member表中获取对应的token
+	var member models.Member
+	if err := database.DB.First(&member, booking.MemberID).Error; err != nil {
+		log.Printf("获取会议发起人信息失败: %v", err)
+		return
+	}
+
+	// 这里需要获取member的token，但当前模型中没有存储token
+	// 在实际应用中，可能需要从其他地方获取token，或者使用系统默认token
+	// 暂时使用用户提供的示例token
+	token := "YIG8ANC8q2QVN_VU6p3rbD0dI9qf4cU6K7i6ItZZfjx1G46U875Mk5ZgrPsbELo9OzKuKsU-PujpV6EiVYqeyhTkAmKBO5fpeXSxZcs5TdDzFxfVpYF9bgA__nKEJOea"
+
+	client := models.NewDooTaskClient(token)
+
+	// 发送会议结束通知
+	if err := client.SendMeetingEndNotification(booking.DialogID); err != nil {
+		log.Printf("发送会议结束通知失败: %v", err)
+	} else {
+		log.Printf("会议结束通知发送成功，DialogID: %d", booking.DialogID)
+	}
 }

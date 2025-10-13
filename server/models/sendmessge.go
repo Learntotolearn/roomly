@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -31,10 +32,14 @@ func getEndTime(start string) string {
 
 type DooTaskClient struct {
 	Client *dootask.Client
+	Token  string
 }
 
 func NewDooTaskClient(token string) DooTaskClient {
-	return DooTaskClient{Client: dootask.NewClient(token)}
+	return DooTaskClient{
+		Client: dootask.NewClient(token, dootask.WithServer("http://127.0.0.1")),
+		Token:  token,
+	}
 }
 
 func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
@@ -49,8 +54,150 @@ func (d *DooTaskClient) SendBotMessage(userID uint, message string) error {
 	})
 }
 
+// CreateGroupAndSendNotification 创建群组并发送会议通知
+func (d *DooTaskClient) CreateGroupAndSendNotification(userIDs []int, roomName string, date string, timeSlots []string, reason string, attendees string) (int, error) {
+	// 创建群组名称
+	meetingTime := date
+	if len(timeSlots) > 0 {
+		start := timeSlots[0]
+		end := getEndTime(timeSlots[len(timeSlots)-1])
+		meetingTime = fmt.Sprintf("%s %s-%s", date, start, end)
+	}
+	groupName := fmt.Sprintf("会议群组 - %s - %s", roomName, meetingTime)
+
+	// 创建群组
+	createGroupRequest := dootask.CreateGroupRequest{
+		ChatName: groupName,
+		UserIDs:  userIDs,
+	}
+
+	groupInfo, err := d.Client.CreateGroup(createGroupRequest)
+	if err != nil {
+		return 0, fmt.Errorf("创建群组失败: %v", err)
+	}
+
+	fmt.Printf("群组创建成功: ID=%d, Name=%s\n", groupInfo.ID, groupInfo.Name)
+
+	// 在群组中发送会议通知
+	reasonSection := ""
+	if reason != "" {
+		reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
+	}
+
+	notificationMsg := fmt.Sprintf(`## 📢 会议通知
+### **您有新的会议安排，请按时参加！**
+
+- **会议室**：%s
+- **会议时间**：%s
+- **参会人员**：%s%s
+
+> 会议结束后，系统将自动发送会议结束通知。`, roomName, meetingTime, attendees, reasonSection)
+
+	// 发送群组通知
+	if err := d.sendGroupNotice(groupInfo.ID, notificationMsg); err != nil {
+		fmt.Printf("发送群组通知失败: %v\n", err)
+		// 即使通知发送失败，群组创建成功也算成功
+	}
+
+	return groupInfo.ID, nil
+}
+
+// sendGroupNotice 发送群组通知
+func (d *DooTaskClient) sendGroupNotice(dialogID int, notice string) error {
+	// 使用 SDK 发送群组文本消息（Markdown）
+	req := dootask.SendMessageRequest{
+		DialogID: dialogID,
+		// TextType 留空将默认 "md"
+		Text: notice,
+	}
+	var resp any
+	if err := d.Client.SendMessage(req, &resp); err != nil {
+		return fmt.Errorf("发送群组通知失败: %v", err)
+	}
+	fmt.Printf("群组通知发送成功: DialogID=%d\n", dialogID)
+	return nil
+}
+
+// SendMeetingEndNotification 发送会议结束通知
+func (d *DooTaskClient) SendMeetingEndNotification(dialogID int) error {
+	return d.sendGroupNotice(dialogID, "会议结束")
+}
+
+// CreateGroupAndNotify 创建群组并发送会议通知（替代原来的机器人通知）
+func CreateGroupAndNotify(userIDs []int, token string, date string, timeSlots []string, roomName string, reason string, attendees string) (int, error) {
+	client := NewDooTaskClient(token)
+
+	// 对 userIDs 去重
+	userIDMap := make(map[int]struct{})
+	var uniqueUserIDs []int
+	for _, id := range userIDs {
+		if _, exists := userIDMap[id]; !exists {
+			userIDMap[id] = struct{}{}
+			uniqueUserIDs = append(uniqueUserIDs, id)
+		}
+	}
+
+	// 创建群组并发送通知
+	dialogID, err := client.CreateGroupAndSendNotification(uniqueUserIDs, roomName, date, timeSlots, reason, attendees)
+	if err != nil {
+		return 0, fmt.Errorf("创建群组并发送通知失败: %v", err)
+	}
+
+	return dialogID, nil
+}
+
 // SendMessageWithToken 用指定 token 给多个用户发送消息，msgType 支持 'remind'（会议提醒）、'cancel'（会议取消）、'summary'（会议纪要），如有 msgContent 则优先用自定义内容
+// 注意：此函数已废弃，请使用 CreateGroupAndNotify 替代
 func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date string, timeSlots []string, roomName string, msgType string, reason string, attendees string, msgContent ...string) {
+	// 对于新的会议提醒，使用群组通知
+	if msgType == "remind" {
+		dialogID, err := CreateGroupAndNotify(userIDs, token, date, timeSlots, roomName, reason, attendees)
+		if err != nil {
+			fmt.Printf("创建群组通知失败: %v\n", err)
+		} else {
+			fmt.Printf("群组创建成功，DialogID: %d\n", dialogID)
+		}
+
+		// 在新预定时，管理员需要单独收到机器人通知
+		meetingTime := date
+		if len(timeSlots) > 0 {
+			start := timeSlots[0]
+			end := getEndTime(timeSlots[len(timeSlots)-1])
+			meetingTime = fmt.Sprintf("%s %s-%s", date, start, end)
+		}
+
+		// 获取预定者昵称（可选）
+		client := NewDooTaskClient(token)
+		user, uErr := client.Client.GetUserInfo()
+		nickname := ""
+		if uErr == nil {
+			nickname = user.Nickname
+			if user.Profession != "" {
+				nickname = nickname + " (" + user.Profession + ")"
+			}
+		}
+
+		adminMsg := fmt.Sprintf(`## 📢  会议室新预定提醒
+### **会议室有新预定，请关注。**
+
+- **会议室**：%s
+- **时间**：%s
+- **会议室预定人**：%s`, roomName, meetingTime, nickname)
+
+		// 机器人 token；若未配置则回退当前 token
+		botToken := os.Getenv("MEETING_BOT_TOKEN")
+		if botToken == "" {
+			botToken = token
+		}
+		adminClient := NewDooTaskClient(botToken)
+		for _, adminID := range adminIDs {
+			_ = adminClient.SendBotMessage(uint(adminID), adminMsg)
+		}
+
+		return
+	}
+
+	// 对于其他类型的通知（取消、变更等），仍然使用机器人通知
 	client := NewDooTaskClient(token)
 	user, err := client.Client.GetUserInfo()
 	var nickname string
@@ -69,6 +216,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 		end := getEndTime(timeSlots[len(timeSlots)-1])
 		meetingTime = fmt.Sprintf("%s %s-%s", date, start, end)
 	}
+
 	// 通知所有参会人员
 	var msg string
 	switch msgType {
@@ -109,7 +257,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 `, summarySection)
 	case "reschedule":
 		// 会议时间变更提醒（目前仅展示新时间；如需旧→新，请在 msgContent[0] 传入旧时间）
-		// 预留变更理由：使用 reason 字段（若需要专门的“变更理由”，可在后端调用时传入自定义内容）
+		// 预留变更理由：使用 reason 字段（若需要专门的"变更理由"，可在后端调用时传入自定义内容）
 		reasonSection := ""
 		if reason != "" {
 			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
@@ -137,6 +285,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 - **参会人员**：%s
 - **会议发起人**：%s%s`, roomName, meetingTime, attendees, nickname, reasonSection)
 	}
+
 	// 对 userIDs 去重
 	userIDMap := make(map[int]struct{})
 	var uniqueUserIDs []int
@@ -146,6 +295,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 			uniqueUserIDs = append(uniqueUserIDs, id)
 		}
 	}
+
 	// 对 adminIDs 去重
 	adminIDMap := make(map[int]struct{})
 	var uniqueAdminIDs []int
@@ -155,71 +305,92 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 			uniqueAdminIDs = append(uniqueAdminIDs, id)
 		}
 	}
-	for _, userID := range uniqueUserIDs {
-		err := client.SendBotMessage(uint(userID), msg)
-		if err != nil {
-			fmt.Printf("发送消息给用户%d失败: %v, %s\n", userID, err, nickname)
-			continue
+
+	// 创建群组（参会者 + 管理员），并在群组中发送通知
+	allIDMap := make(map[int]struct{})
+	var allMemberIDs []int
+	for _, id := range uniqueUserIDs {
+		if _, exists := allIDMap[id]; !exists {
+			allIDMap[id] = struct{}{}
+			allMemberIDs = append(allMemberIDs, id)
 		}
-		fmt.Printf("消息发送成功: %d, %s\n", userID, nickname)
+	}
+	for _, id := range uniqueAdminIDs {
+		if _, exists := allIDMap[id]; !exists {
+			allIDMap[id] = struct{}{}
+			allMemberIDs = append(allMemberIDs, id)
+		}
 	}
 
-	// 通知所有会议室管理员
-	for _, adminID := range uniqueAdminIDs {
-		adminToken := token
-		adminClient := NewDooTaskClient(adminToken)
-		var adminMsg string
-		switch msgType {
-		case "cancel":
-			// 获取取消理由
-			cancelReason := ""
-			if len(msgContent) > 0 {
-				cancelReason = msgContent[0]
-			}
+	groupName := fmt.Sprintf("会议群组 - %s - %s", roomName, meetingTime)
+	groupInfo, gErr := client.Client.CreateGroup(dootask.CreateGroupRequest{
+		ChatName: groupName,
+		UserIDs:  allMemberIDs,
+	})
+	if gErr != nil {
+		fmt.Printf("创建群组失败: %v\n", gErr)
+		return
+	}
 
-			cancelReasonSection := ""
-			if cancelReason != "" {
-				cancelReasonSection = fmt.Sprintf("\n- **会议取消理由**：%s", cancelReason)
-			}
+	// 在群组中发送参会者通知
+	_ = client.Client.SendMessage(dootask.SendMessageRequest{
+		DialogID: groupInfo.ID,
+		Text:     msg, // 默认 Markdown
+	})
 
-			adminMsg = fmt.Sprintf(`## ❌  会议室预定取消提醒
+	// 管理员文案需单独发送，使用会议室机器人逐一发至管理员对话
+	var adminMsg string
+	switch msgType {
+	case "cancel":
+		cancelReason := ""
+		if len(msgContent) > 0 {
+			cancelReason = msgContent[0]
+		}
+		cancelReasonSection := ""
+		if cancelReason != "" {
+			cancelReasonSection = fmt.Sprintf("\n- **会议取消理由**：%s", cancelReason)
+		}
+		adminMsg = fmt.Sprintf(`## ❌  会议室预定取消提醒
 ### **有会议室预定被取消，请关注。**
 
 - **会议室**：%s
 - **原定时间**：%s
 - **会议室预定人**：%s%s`, roomName, meetingTime, nickname, cancelReasonSection)
-		case "reschedule":
-			// 会议室预定变更提醒
-			reasonSection := ""
-			if reason != "" {
-				reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
-			}
-			adminMsg = fmt.Sprintf(`## 🔄  会议室预定变更提醒
+	case "reschedule":
+		reasonSection := ""
+		if reason != "" {
+			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
+		}
+		adminMsg = fmt.Sprintf(`## 🔄  会议室预定变更提醒
 ### **会议室预定时间已更新，请关注。**
 
 - **会议室**：%s
 - **新的时间**：%s
 - **会议室预定人**：%s%s
 `, roomName, meetingTime, nickname, reasonSection)
-		default:
-			// 添加预定理由到管理员通知消息中
-			reasonSection := ""
-			if reason != "" {
-				reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
-			}
-			adminMsg = fmt.Sprintf(`## 📢  会议室新预定提醒
+	default:
+		reasonSection := ""
+		if reason != "" {
+			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
+		}
+		adminMsg = fmt.Sprintf(`## 📢  会议室新预定提醒
 ### **会议室有新预定，请关注。**
 
 - **会议室**：%s
 - **时间**：%s
 - **会议室预定人**：%s%s
 `, roomName, meetingTime, nickname, reasonSection)
+	}
+
+	// 机器人 token 从环境变量获取：MEETING_BOT_TOKEN；若未配置则回退为当前 token
+	botToken := os.Getenv("MEETING_BOT_TOKEN")
+	if botToken == "" {
+		botToken = token
+	}
+	adminClient := NewDooTaskClient(botToken)
+	for _, adminID := range uniqueAdminIDs {
+		if err := adminClient.SendBotMessage(uint(adminID), adminMsg); err != nil {
+			fmt.Printf("管理员机器人消息发送失败: adminID=%d, err=%v\n", adminID, err)
 		}
-		err := adminClient.SendBotMessage(uint(adminID), adminMsg)
-		if err != nil {
-			fmt.Printf("发送消息给管理员%d失败: %v, %s\n", adminID, err, nickname)
-			continue
-		}
-		fmt.Printf("管理员消息发送成功: %+v, %s\n", adminID, nickname)
 	}
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"time"
 
 	"roomly/database"
@@ -32,6 +33,11 @@ func CheckAndUpdateExpiredBookings(bookings []models.Booking) []models.Booking {
 
 		// 检查是否已过期
 		if endTime.Before(now) || endTime.Equal(now) {
+			// 如果状态还是active，说明刚刚过期，需要发送会议结束通知
+			if booking.Status == "active" {
+				// 发送会议结束通知
+				go sendMeetingEndNotification(*booking)
+			}
 			booking.Status = "expired"
 			// 立即更新数据库
 			database.DB.Save(booking)
@@ -113,4 +119,35 @@ func IsBookingExpired(booking models.Booking) bool {
 	now := time.Now().In(loc)
 
 	return endTime.Before(now) || endTime.Equal(now)
+}
+
+// sendMeetingEndNotification 发送会议结束通知
+func sendMeetingEndNotification(booking models.Booking) {
+	// 检查是否有群组ID
+	if booking.DialogID == 0 {
+		fmt.Printf("会议ID %d 没有群组ID，跳过发送结束通知\n", booking.ID)
+		return
+	}
+
+	// 获取会议发起人的token（这里需要从数据库获取，暂时使用空字符串）
+	// 在实际应用中，应该从Member表中获取对应的token
+	var member models.Member
+	if err := database.DB.First(&member, booking.MemberID).Error; err != nil {
+		fmt.Printf("获取会议发起人信息失败: %v\n", err)
+		return
+	}
+
+	// 这里需要获取member的token，但当前模型中没有存储token
+	// 在实际应用中，可能需要从其他地方获取token，或者使用系统默认token
+	// 暂时使用用户提供的示例token
+	token := "YIG8ANC8q2QVN_VU6p3rbD0dI9qf4cU6K7i6ItZZfjx1G46U875Mk5ZgrPsbELo9OzKuKsU-PujpV6EiVYqeyhTkAmKBO5fpeXSxZcs5TdDzFxfVpYF9bgA__nKEJOea"
+
+	client := models.NewDooTaskClient(token)
+
+	// 发送会议结束通知
+	if err := client.SendMeetingEndNotification(booking.DialogID); err != nil {
+		fmt.Printf("发送会议结束通知失败: %v\n", err)
+	} else {
+		fmt.Printf("会议结束通知发送成功，DialogID: %d\n", booking.DialogID)
+	}
 }

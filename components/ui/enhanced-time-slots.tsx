@@ -46,7 +46,7 @@ export function EnhancedTimeSlots({
     const getVariantAndClass = () => {
       if (isSelected) return { 
         variant: 'outline' as const, 
-        className: '!bg-gray-100 dark:!bg-gray-200 !text-gray-900 dark:!text-gray-900 !border-gray-300 dark:!border-gray-400 hover:!bg-gray-200 dark:hover:!bg-gray-300' 
+        className: '!bg-[#74C365] !text-white !border-[#74C365] hover:!bg-[#67b85b]'
       };
       
       switch (category) {

@@ -27,7 +27,7 @@ interface Props {
   isOpen: boolean;
   isUpdating: boolean;
   onClose: () => void;
-  onConfirm: (date: string, timeSlots: string[]) => Promise<void> | void;
+  onConfirm: (date: string, timeSlots: string[], changeReason: string) => Promise<void> | void;
 }
 
 function getEndTime(start: string): string {
@@ -76,6 +76,7 @@ export default function RescheduleBookingDialog(props: Props) {
   const [available, setAvailable] = useState<AvailableSlots | null>(null);
   const [selected, setSelected] = useState<string[]>([]); // 仅保存开始时间数组
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [changeReason, setChangeReason] = useState<string>(''); // 时间变更理由（必填）
 
   // 当前预定原始覆盖的 30 分钟开始刻（用于在修改时放开自身原时段的选择）
   const originalStarts = useMemo(() => {
@@ -202,12 +203,12 @@ export default function RescheduleBookingDialog(props: Props) {
     setSelected([start]);
   };
 
-  const canSave = orderedSelected.length > 0 && isConsecutive(orderedSelected);
+  const canSave = orderedSelected.length > 0 && isConsecutive(orderedSelected) && changeReason.trim().length > 0;
 
   const onSave = async () => {
     if (!canSave) return;
     try {
-      await onConfirm(date, orderedSelected);
+      await onConfirm(date, orderedSelected, changeReason.trim());
     } catch (e: any) {
       const msg = String(e?.message || e || '');
       // 识别 409/Conflict，友好提示并刷新可用时段
@@ -356,6 +357,16 @@ export default function RescheduleBookingDialog(props: Props) {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium mb-1">时间变更理由</label>
+          <textarea
+            value={changeReason}
+            onChange={(e) => setChangeReason(e.target.value)}
+            placeholder="请填写此次变更的理由（必填）"
+            className="w-full min-h-[88px] p-3 border border-border rounded bg-background text-foreground"
+          />  
         </div>
 
         <div className="mt-6 flex justify-end gap-2">

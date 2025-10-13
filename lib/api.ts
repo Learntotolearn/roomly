@@ -2,7 +2,7 @@ import { Member, Room, Booking, BookingRequest, AvailableSlots, BookingUser } fr
 import { getUserInfo } from '@dootask/tools';
 
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://lan-dootask.keli.vip/apps/roomly/api';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090/api';
 
 
 // 基础API调用函数
@@ -242,7 +242,7 @@ export const bookingApi = {
   },
 
   // 修改预定时间
-  reschedule: async (id: number, payload: { date: string; time_slots: string[] }) => {
+  reschedule: async (id: number, payload: { date: string; time_slots: string[]; change_reason: string }) => {
     let token = '';
     try {
       const userInfo = await getUserInfo();

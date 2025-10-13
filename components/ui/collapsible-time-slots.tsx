@@ -41,8 +41,8 @@ export function CollapsibleTimeSlots({
       <Button
         key={slot.start}
         type="button"
-        variant={selectedTimeSlots.includes(slot.start) ? "default" : "outline"}
-        className={`justify-start ${getButtonClass()}`}
+        variant={"outline"}
+        className={`justify-start ${selectedTimeSlots.includes(slot.start) ? 'bg-[#74C365] text-white border-[#74C365] hover:bg-[#67b85b]' : ''} ${getButtonClass()}`}
         onClick={() => !isDisabled && onTimeSlotToggle(slot.start)}
         disabled={isDisabled}
       >

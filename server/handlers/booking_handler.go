@@ -3,12 +3,15 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"roomly/database"
 	"roomly/models"
+
+	dootask "github.com/dootask/tools/server/go"
 
 	"github.com/gin-gonic/gin"
 )
@@ -310,8 +313,65 @@ func CreateBooking(c *gin.Context) {
 		attendeeNames = append(attendeeNames, user.Nickname)
 	}
 	attendees := strings.Join(attendeeNames, "、")
-	// 异步发送会议通知
-	go models.SendMessageWithToken(userIDs, adminIDs, token, request.Date, request.TimeSlots, roomName, "remind", request.Reason, attendees, "")
+	// 异步创建群组并发送会议通知 + 管理员机器人通知
+	go func() {
+		// 1) 群组通知（预定者身份）
+		dialogID, err := models.CreateGroupAndNotify(userIDs, token, request.Date, request.TimeSlots, roomName, request.Reason, attendees)
+		if err != nil {
+			fmt.Printf("创建群组通知失败: %v\n", err)
+		} else {
+			// 保存群组ID到数据库
+			booking.DialogID = dialogID
+			database.DB.Save(&booking)
+			fmt.Printf("群组创建成功，DialogID: %d\n", dialogID)
+		}
+
+		// 2) 管理员机器人通知：优先用环境变量 MEETING_BOT_TOKEN（无则回退当前 token）
+		botToken := os.Getenv("MEETING_BOT_TOKEN")
+		if botToken == "" {
+			botToken = token
+		}
+		adminClient := models.NewDooTaskClient(botToken)
+
+		// 计算会议时间区间（用于文案）
+		meetingTime := fmt.Sprintf("%s %s-%s", request.Date, request.TimeSlots[0], getEndTime(request.TimeSlots[len(request.TimeSlots)-1]))
+
+		// 获取预定者昵称（用于文案）：通过当前用户 token 查询 dootask 用户信息
+		bookerName := ""
+		userClient := models.NewDooTaskClient(token)
+		u, uErr := userClient.Client.GetUserInfo()
+		if uErr == nil && u.Nickname != "" {
+			bookerName = u.Nickname
+			if u.Profession != "" {
+				bookerName = bookerName + " (" + u.Profession + ")"
+			}
+		}
+
+		reasonSection := ""
+		if request.Reason != "" {
+			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", request.Reason)
+		}
+
+		adminMsg := fmt.Sprintf(`## 📢  会议室新预定提醒
+### **会议室有新预定，请关注。**
+
+- **会议室**：%s
+- **时间**：%s
+- **会议室预定人**：%s%s
+`, roomName, meetingTime, bookerName, reasonSection)
+
+		// 去重并逐个发送机器人通知
+		seen := make(map[int]struct{})
+		for _, adminID := range adminIDs {
+			if _, ok := seen[adminID]; ok {
+				continue
+			}
+			seen[adminID] = struct{}{}
+			if err := adminClient.SendBotMessage(uint(adminID), adminMsg); err != nil {
+				fmt.Printf("管理员机器人消息发送失败: adminID=%d, err=%v\n", adminID, err)
+			}
+		}
+	}()
 
 	c.JSON(http.StatusCreated, booking)
 }
@@ -328,8 +388,9 @@ func RescheduleBooking(c *gin.Context) {
 	id := c.Param("id")
 
 	var payload struct {
-		Date      string   `json:"date" binding:"required"`
-		TimeSlots []string `json:"time_slots" binding:"required"`
+		Date         string   `json:"date" binding:"required"`
+		TimeSlots    []string `json:"time_slots" binding:"required"`
+		ChangeReason string   `json:"change_reason" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -415,12 +476,83 @@ func RescheduleBooking(c *gin.Context) {
 		attendeeNames = append(attendeeNames, user.Nickname)
 	}
 	attendees := strings.Join(attendeeNames, "、")
-	// 时间段数组
-	timeSlots := []string{booking.StartTime, booking.EndTime}
-	// 异步发送“时间变更”通知
-	if len(userIDs) > 0 {
-		go models.SendMessageWithToken(userIDs, adminIDs, token, booking.Date, timeSlots, roomName, "reschedule", booking.Reason, attendees, "")
-	}
+	// 异步处理：不创建新群组，在原群组修改名称并发送“时间变更”通知；无群组则创建
+	go func() {
+		dt := models.NewDooTaskClient(token)
+
+		// 新会议时间字符串与群组新名称
+		meetingTime := fmt.Sprintf("%s %s-%s", booking.Date, booking.StartTime, booking.EndTime)
+		newGroupName := fmt.Sprintf("会议群组 - %s - %s", roomName, meetingTime)
+
+		if booking.DialogID > 0 {
+			// 修改群组名称
+			_ = dt.Client.EditGroup(dootask.EditGroupRequest{
+				DialogID: booking.DialogID,
+				ChatName: newGroupName,
+			})
+			// 在原群组发送“时间变更”通知（包含变更理由）
+			reasonSection := ""
+			if payload.ChangeReason != "" {
+				reasonSection = fmt.Sprintf("\n- **时间变更理由**：%s", payload.ChangeReason)
+			}
+			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
+				DialogID: booking.DialogID,
+				Text: fmt.Sprintf(`## 🔄  会议时间变更通知
+### **您参与的会议时间已更新，请留意新的安排**
+
+- **会议室**：%s
+- **新的会议时间**：%s
+- **参会人员**：%s%s
+
+> 若您无法按新时间参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, reasonSection),
+			})
+		} else {
+			// 无群组则创建并通知（回退策略）
+			_, _ = models.CreateGroupAndNotify(userIDs, token, booking.Date, []string{booking.StartTime, booking.EndTime}, roomName, booking.Reason, attendees)
+		}
+
+		// 管理员机器人通知（保持与新预定一致）
+		botToken := os.Getenv("MEETING_BOT_TOKEN")
+		if botToken == "" {
+			botToken = token
+		}
+		adminClient := models.NewDooTaskClient(botToken)
+
+		// 预定者昵称（用于文案）
+		bookerName := ""
+		u, uErr := dt.Client.GetUserInfo()
+		if uErr == nil && u.Nickname != "" {
+			bookerName = u.Nickname
+			if u.Profession != "" {
+				bookerName = bookerName + " (" + u.Profession + ")"
+			}
+		}
+
+		// 管理员通知文案（包含变更理由）
+		reasonSection := ""
+		if payload.ChangeReason != "" {
+			reasonSection = fmt.Sprintf("\n- **时间变更理由**：%s", payload.ChangeReason)
+		}
+		adminMsg := fmt.Sprintf(`## 🔄  会议室预定变更提醒
+### **会议室预定时间已更新，请关注。**
+
+- **会议室**：%s
+- **新的时间**：%s
+- **会议室预定人**：%s%s
+`, roomName, meetingTime, bookerName, reasonSection)
+
+		// 去重并逐个发送机器人通知
+		seen := make(map[int]struct{})
+		for _, adminID := range adminIDs {
+			if _, ok := seen[adminID]; ok {
+				continue
+			}
+			seen[adminID] = struct{}{}
+			if err := adminClient.SendBotMessage(uint(adminID), adminMsg); err != nil {
+				fmt.Printf("管理员机器人消息发送失败: adminID=%d, err=%v\n", adminID, err)
+			}
+		}
+	}()
 
 	c.JSON(http.StatusOK, booking)
 }

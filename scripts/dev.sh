@@ -38,7 +38,7 @@ echo "🔍 检查服务状态..."
 # 检查Go后端
 for i in {1..5}; do
     sleep 1
-    if curl -s http://localhost:8080/health > /dev/null; then
+    if curl -s http://localhost:8090/health > /dev/null; then
         echo "✅ Go后端启动成功 (PID: $BACKEND_PID)"
         break
     fi

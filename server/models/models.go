@@ -37,8 +37,9 @@ type Booking struct {
 	EndTime        string    `gorm:"not null" json:"end_time"`   // 格式: HH:MM
 	Reason         string    `gorm:"not null" json:"reason"`
 	CancelReason   string    `json:"cancel_reason"`                // 取消理由
-	Status         string    `gorm:"default:active" json:"status"` // active, cancelled
+	Status         string    `gorm:"default:active" json:"status"` // active, cancelled, expired
 	SummaryContent string    `json:"summary_content"`              // 会议纪要内容
+	DialogID       int       `json:"dialog_id"`                    // 群组ID，用于发送会议结束通知
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 

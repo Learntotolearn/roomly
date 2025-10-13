@@ -529,11 +529,11 @@ export default function MyBookingsPage() {
   };
 
   // 提交修改时间
-  const handleConfirmReschedule = async (date: string, timeSlots: string[]) => {
+  const handleConfirmReschedule = async (date: string, timeSlots: string[], changeReason: string) => {
     if (!reschedulingBooking) return;
     setIsRescheduling(true);
     try {
-      await bookingApi.reschedule(reschedulingBooking.id, { date, time_slots: timeSlots });
+      await bookingApi.reschedule(reschedulingBooking.id, { date, time_slots: timeSlots, change_reason: changeReason });
       queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['available-slots'] });
       await reloadAllBookings();

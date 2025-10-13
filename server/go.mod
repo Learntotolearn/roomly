@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.3
 
 require (
-	github.com/dootask/tools/server/go v0.0.0-20250717040353-7e9cc89be08c
+	github.com/dootask/tools/server/go v0.0.0-20250808160059-4524f6f95dfd
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
 	github.com/tealeg/xlsx v1.0.5

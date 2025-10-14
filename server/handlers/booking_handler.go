@@ -498,13 +498,13 @@ func RescheduleBooking(c *gin.Context) {
 			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
 				DialogID: booking.DialogID,
 				Text: fmt.Sprintf(`## 🔄  会议时间变更通知
-### **您参与的会议时间已更新，请留意新的安排**
+### **会议时间已更新，请留意新的安排**
 
 - **会议室**：%s
 - **新的会议时间**：%s
 - **参会人员**：%s%s
 
-> 若您无法按新时间参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, reasonSection),
+> 若无法按新时间参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, reasonSection),
 			})
 		} else {
 			// 无群组则创建并通知（回退策略）

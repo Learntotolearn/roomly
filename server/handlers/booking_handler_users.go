@@ -115,6 +115,8 @@ func UpdateBookingUsers(c *gin.Context) {
 	// 1. 识别被移除的参会人员
 	var removedUserIDs []int
 	var removedUserMap = make(map[uint]bool)
+	// 记录被移除用户昵称，便于群组与管理员文案
+	var removedUserNames []string
 
 	// 创建新参会人员的映射，用于快速查找
 	newUserMap := make(map[uint]bool)
@@ -127,6 +129,7 @@ func UpdateBookingUsers(c *gin.Context) {
 		if !newUserMap[originalUser.Userid] {
 			removedUserIDs = append(removedUserIDs, int(originalUser.Userid))
 			removedUserMap[originalUser.Userid] = true
+			removedUserNames = append(removedUserNames, originalUser.Nickname)
 		}
 	}
 
@@ -152,19 +155,64 @@ func UpdateBookingUsers(c *gin.Context) {
 	fmt.Printf("Added user IDs: %v\n", addedUserIDs)
 	fmt.Printf("Added user names: %v\n", addedUserNames)
 
-	// 获取所有参会用户昵称（用于管理员通知）
+	// 获取所有参会用户昵称（用于管理员通知）——以数据库最新记录为准
 	var attendeeNames []string
-	for _, user := range req.BookingUsers {
-		attendeeNames = append(attendeeNames, user.Nickname)
+	for _, bu := range booking.BookingUsers {
+		attendeeNames = append(attendeeNames, bu.Nickname)
 	}
 	attendees := strings.Join(attendeeNames, "、")
 
-	// 3. 向被移除的参会人员发送通知
+	// 3. 向被移除的参会人员发送提醒（不再发送“会议已取消”）
 	if len(removedUserIDs) > 0 {
-		fmt.Printf("Sending cancellation notice to removed users: %v\n", removedUserIDs)
-		// 在现有群组内发送取消通知与 Notice，并向管理员发机器人提醒
-		meetingTime := fmt.Sprintf("%s %s-%s", booking.Date, booking.StartTime, booking.EndTime)
-		_ = models.SendCancelNotifications(int(booking.DialogID), roomName, meetingTime, attendees, "您已被移出此会议", token, []int{})
+		fmt.Printf("Notify removed users (DM) and post group update: %v\n", removedUserIDs)
+		dt := models.NewDooTaskClient(token)
+
+		// 机器人私信提醒每位被移除的参会者
+		for _, uid := range removedUserIDs {
+			_ = dt.SendBotMessage(uint(uid), fmt.Sprintf(`## 📢  会议室通知
+### 提示：您已被移出会议
+- 会议室：%s，
+- 时间：%s %s-%s`, roomName, booking.Date, booking.StartTime, booking.EndTime))
+		}
+
+		// 同步群聊成员：移除被删除的用户
+		if int(booking.DialogID) > 0 {
+			for _, uid := range removedUserIDs {
+				_ = dt.Client.RemoveGroupUser(dootask.RemoveGroupUserRequest{
+					DialogID: int(booking.DialogID),
+					UserIDs:  []int{uid},
+				})
+			}
+			// 在群组中发送“参会人员更新”普通消息，避免出现“会议已取消”的误导性提示
+			removedList := strings.Join(removedUserNames, "、")
+			groupMsg := fmt.Sprintf(`### 参会人员更新
+- 会议室：%s
+- 时间：%s %s-%s
+
+- 移除：%s
+- 当前参会：%s`, roomName, booking.Date, booking.StartTime, booking.EndTime, removedList, attendees)
+			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
+				DialogID: int(booking.DialogID),
+				Text:     groupMsg,
+			})
+
+			// 给每位新增参会人员发送会议提醒（Markdown）
+			meetingTime := fmt.Sprintf("%s %s", booking.Date, strings.Join(timeSlots, "-"))
+			initiator := ""
+			// 尝试使用发起人名称，如结构体无该字段则保持为空
+			// models.Member 常见字段为 Name
+			initiator = booking.Member.Name
+			for _, uid := range addedUserIDs {
+				msg := fmt.Sprintf(`## 📢  会议提醒
+### **有新的会议安排，请按时参加！**
+
+- **会议室**：%s
+- **会议时间**：%s
+- **参会人员**：%s
+- **会议发起人**：%s`, roomName, meetingTime, attendees, initiator)
+				_ = dt.SendBotMessage(uint(uid), msg)
+			}
+		}
 	}
 
 	// 4. 向新增的参会人员发送通知
@@ -186,33 +234,80 @@ func UpdateBookingUsers(c *gin.Context) {
 
 		attendeesCopy := attendees
 
-		// 使用goroutine确保消息发送不会阻塞API响应
-		go func() {
-			fmt.Printf("Actually sending messages to: %v\n", addedUserIDsCopy)
-			// 直接在现有群组内发送新增参会人通知，避免重复创建群
+		// 复制新增/移除昵称，供管理员提醒文案使用
+		addedUserNamesCopy := make([]string, len(addedUserNames))
+		copy(addedUserNamesCopy, addedUserNames)
+		removedUserNamesCopy := make([]string, len(removedUserNames))
+		copy(removedUserNamesCopy, removedUserNames)
+
+		// 在进入异步发送消息前，同步将新增用户加入群聊
+		if int(booking.DialogID) > 0 {
 			dt := models.NewDooTaskClient(tokenCopy)
+			for _, uid := range addedUserIDsCopy {
+				_ = dt.Client.AddGroupUser(dootask.AddGroupUserRequest{
+					DialogID: int(booking.DialogID),
+					UserIDs:  []int{uid},
+				})
+			}
+			// 群内汇总文案：参会人员更新（新增）
+			addedList := strings.Join(addedUserNamesCopy, "、")
+			groupMsg := fmt.Sprintf(`### 参会人员更新
+- 会议室：%s
+- 时间：%s %s
+
+- 新增：%s
+- 当前参会：%s`, roomNameCopy, dateCopy, strings.Join(timeSlotsCopy, "-"), addedList, attendeesCopy)
 			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
 				DialogID: int(booking.DialogID),
-				Text:     "您已被添加到此会议",
+				Text:     groupMsg,
 			})
-			// 可选：管理员机器人提醒
+		}
+
+		// 使用goroutine确保消息发送不会阻塞API响应
+		go func() {
+			fmt.Printf("Sending admin notifications for participants update: added=%v removed=%v\n", addedUserNamesCopy, removedUserNamesCopy)
+			// 管理员机器人提醒（已禁用对会议室管理员的人员变动通知）
+			return
 			if len(adminIDsCopy) > 0 {
-				adminMsg := fmt.Sprintf("会议参会人员更新：%s %s-%s，新增：%s", roomNameCopy, dateCopy, strings.Join(timeSlotsCopy, "-"), attendeesCopy)
+				adminMsg := fmt.Sprintf(`## 会议参会人员更新
+- 会议室：%s
+- 时间：%s %s
+
+- 新增：%s
+- 移除：%s
+- 当前参会：%s`,
+					roomNameCopy,
+					dateCopy,
+					strings.Join(timeSlotsCopy, "-"),
+					strings.Join(addedUserNamesCopy, "、"),
+					strings.Join(removedUserNamesCopy, "、"),
+					attendeesCopy,
+				)
 				botToken := os.Getenv("MEETING_BOT_TOKEN")
 				if botToken == "" {
 					botToken = tokenCopy
 				}
 				adminClient := models.NewDooTaskClient(botToken)
 				seen := make(map[int]struct{})
+				// 构建新增人员ID集合，避免新增人员收到管理员汇总通知
+				addedSet := make(map[int]struct{})
+				for _, uid := range addedUserIDsCopy {
+					addedSet[uid] = struct{}{}
+				}
 				for _, adminID := range adminIDsCopy {
+					// 去重
 					if _, ok := seen[adminID]; ok {
+						continue
+					}
+					// 跳过新增人员（如果他也是管理员）
+					if _, isAdded := addedSet[adminID]; isAdded {
 						continue
 					}
 					seen[adminID] = struct{}{}
 					_ = adminClient.SendBotMessage(uint(adminID), adminMsg)
 				}
 			}
-			fmt.Printf("Messages sent successfully to new participants\n")
+			fmt.Printf("Admin notifications sent\n")
 		}()
 	} else {
 		fmt.Printf("No new participants to notify\n")

@@ -39,7 +39,7 @@ func NewDooTaskClient(token string) DooTaskClient {
 	// 支持从环境变量读取 dootask 服务地址，默认 127.0.0.1
 	//server := os.Getenv("DOOTASK_SERVER")
 	//if server == "" {
-	//	server = "http://127.0.0.1"
+	//server := "http://127.0.0.1"
 	//}
 	// 初始化日志，便于核对目标地址与令牌长度
 	//fmt.Printf("[dootask] init client server=%s tokenLen=%d\n", server, len(token))
@@ -349,14 +349,14 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
 		}
 		msg = fmt.Sprintf(`## 🔄  会议时间变更通知
-### **您参与的会议时间已更新，请留意新的安排**
+### **会议时间已更新，请留意新的安排**
 
 - **会议室**：%s
 - **新的会议时间**：%s
 - **参会人员**：%s
 - **会议发起人**：%s%s
 
-> 若您无法按新时间参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, nickname, reasonSection)
+> 若无法按新时间参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, nickname, reasonSection)
 	default:
 		// 添加预定理由到会议提醒消息中
 		reasonSection := ""

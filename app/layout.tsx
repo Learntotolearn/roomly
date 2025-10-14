@@ -6,6 +6,7 @@ import { AppProvider } from "@/lib/context/app-context";
 import { getSystemTheme } from "@/lib/utils";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
+import ScanExpiredTicker from "@/components/layout/scan-expired-ticker";
 
 // 本地字体加载
 const geistSans = localFont({
@@ -52,6 +53,7 @@ export default async function RootLayout({
       >
         <QueryProvider>
           <AppProvider>
+            <ScanExpiredTicker />
             {children}
             <Toaster />
           </AppProvider>

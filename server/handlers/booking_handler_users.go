@@ -3,10 +3,12 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"roomly/database"
 	"roomly/models"
 	"strings"
 
+	dootask "github.com/dootask/tools/server/go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -160,18 +162,9 @@ func UpdateBookingUsers(c *gin.Context) {
 	// 3. 向被移除的参会人员发送通知
 	if len(removedUserIDs) > 0 {
 		fmt.Printf("Sending cancellation notice to removed users: %v\n", removedUserIDs)
-		go models.SendMessageWithToken(
-			removedUserIDs,
-			[]int{}, // 不需要通知管理员
-			token,
-			booking.Date,
-			timeSlots,
-			roomName,
-			"cancel",
-			booking.Reason,
-			attendees,
-			"您已被移出此会议",
-		)
+		// 在现有群组内发送取消通知与 Notice，并向管理员发机器人提醒
+		meetingTime := fmt.Sprintf("%s %s-%s", booking.Date, booking.StartTime, booking.EndTime)
+		_ = models.SendCancelNotifications(int(booking.DialogID), roomName, meetingTime, attendees, "您已被移出此会议", token, []int{})
 	}
 
 	// 4. 向新增的参会人员发送通知
@@ -190,24 +183,35 @@ func UpdateBookingUsers(c *gin.Context) {
 		timeSlotsCopy := make([]string, len(timeSlots))
 		copy(timeSlotsCopy, timeSlots)
 		roomNameCopy := roomName
-		reasonCopy := booking.Reason
+
 		attendeesCopy := attendees
 
 		// 使用goroutine确保消息发送不会阻塞API响应
 		go func() {
 			fmt.Printf("Actually sending messages to: %v\n", addedUserIDsCopy)
-			models.SendMessageWithToken(
-				addedUserIDsCopy,
-				adminIDsCopy,
-				tokenCopy,
-				dateCopy,
-				timeSlotsCopy,
-				roomNameCopy,
-				"update",
-				reasonCopy,
-				attendeesCopy,
-				"您已被添加到此会议",
-			)
+			// 直接在现有群组内发送新增参会人通知，避免重复创建群
+			dt := models.NewDooTaskClient(tokenCopy)
+			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
+				DialogID: int(booking.DialogID),
+				Text:     "您已被添加到此会议",
+			})
+			// 可选：管理员机器人提醒
+			if len(adminIDsCopy) > 0 {
+				adminMsg := fmt.Sprintf("会议参会人员更新：%s %s-%s，新增：%s", roomNameCopy, dateCopy, strings.Join(timeSlotsCopy, "-"), attendeesCopy)
+				botToken := os.Getenv("MEETING_BOT_TOKEN")
+				if botToken == "" {
+					botToken = tokenCopy
+				}
+				adminClient := models.NewDooTaskClient(botToken)
+				seen := make(map[int]struct{})
+				for _, adminID := range adminIDsCopy {
+					if _, ok := seen[adminID]; ok {
+						continue
+					}
+					seen[adminID] = struct{}{}
+					_ = adminClient.SendBotMessage(uint(adminID), adminMsg)
+				}
+			}
 			fmt.Printf("Messages sent successfully to new participants\n")
 		}()
 	} else {

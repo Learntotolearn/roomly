@@ -24,13 +24,13 @@ func main() {
 	// 修复错误标记为过期的预订
 	FixWronglyExpiredBookings()
 
-	// 启动定时任务检查会议过期并发送结束通知
-	go func() {
-		for {
-			UpdateExpiredBookings()
-			time.Sleep(1 * time.Minute) // 每分钟检查一次
-		}
-	}()
+	// 已改为前端触发扫描过期与通知，禁用后端定时任务以避免竞争
+	// go func() {
+	// 	for {
+	// 		UpdateExpiredBookings()
+	// 		time.Sleep(1 * time.Minute) // 每分钟检查一次
+	// 	}
+	// }()
 
 	// 设置路由
 	r := routes.SetupRoutes()
@@ -156,10 +156,9 @@ func UpdateExpiredBookings() {
 
 		// 检查是否已过期（使用相同时区进行比较）
 		if endTime.Before(now) || endTime.Equal(now) {
-			// 如果状态还是active，说明刚刚过期，需要发送会议结束通知
+			// 如果状态还是active，说明刚刚过期，仅更新状态（通知统一由 /api/bookings/scan-expired 负责）
 			if booking.Status == "active" {
-				// 发送会议结束通知
-				go sendMeetingEndNotification(booking)
+				// 后台定时任务不再发送通知，避免无 token 情况下误触发
 			}
 			booking.Status = "expired"
 			database.DB.Save(&booking)
@@ -173,32 +172,3 @@ func UpdateExpiredBookings() {
 }
 
 // sendMeetingEndNotification 发送会议结束通知
-func sendMeetingEndNotification(booking models.Booking) {
-	// 检查是否有群组ID
-	if booking.DialogID == 0 {
-		log.Printf("会议ID %d 没有群组ID，跳过发送结束通知", booking.ID)
-		return
-	}
-
-	// 获取会议发起人的token（这里需要从数据库获取，暂时使用空字符串）
-	// 在实际应用中，应该从Member表中获取对应的token
-	var member models.Member
-	if err := database.DB.First(&member, booking.MemberID).Error; err != nil {
-		log.Printf("获取会议发起人信息失败: %v", err)
-		return
-	}
-
-	// 这里需要获取member的token，但当前模型中没有存储token
-	// 在实际应用中，可能需要从其他地方获取token，或者使用系统默认token
-	// 暂时使用用户提供的示例token
-	token := "YIG8ANC8q2QVN_VU6p3rbD0dI9qf4cU6K7i6ItZZfjx1G46U875Mk5ZgrPsbELo9OzKuKsU-PujpV6EiVYqeyhTkAmKBO5fpeXSxZcs5TdDzFxfVpYF9bgA__nKEJOea"
-
-	client := models.NewDooTaskClient(token)
-
-	// 发送会议结束通知
-	if err := client.SendMeetingEndNotification(booking.DialogID); err != nil {
-		log.Printf("发送会议结束通知失败: %v", err)
-	} else {
-		log.Printf("会议结束通知发送成功，DialogID: %d", booking.DialogID)
-	}
-}

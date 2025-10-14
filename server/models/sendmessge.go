@@ -36,8 +36,16 @@ type DooTaskClient struct {
 }
 
 func NewDooTaskClient(token string) DooTaskClient {
+	// 支持从环境变量读取 dootask 服务地址，默认 127.0.0.1
+	server := os.Getenv("DOOTASK_SERVER")
+	if server == "" {
+		server = "http://127.0.0.1"
+	}
+	// 初始化日志，便于核对目标地址与令牌长度
+	fmt.Printf("[dootask] init client server=%s tokenLen=%d\n", server, len(token))
+
 	return DooTaskClient{
-		Client: dootask.NewClient(token, dootask.WithServer("http://127.0.0.1")),
+		Client: dootask.NewClient(token, dootask.WithServer(server)),
 		Token:  token,
 	}
 }
@@ -85,13 +93,13 @@ func (d *DooTaskClient) CreateGroupAndSendNotification(userIDs []int, roomName s
 	}
 
 	notificationMsg := fmt.Sprintf(`## 📢 会议通知
-### **您有新的会议安排，请按时参加！**
+### **有新的会议安排，请按时参加！**
 
 - **会议室**：%s
 - **会议时间**：%s
 - **参会人员**：%s%s
 
-> 若您无法参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, reasonSection)
+> 若无法参加，请尽快与会议发起人或管理员沟通。`, roomName, meetingTime, attendees, reasonSection)
 
 	// 发送群组通知
 	if err := d.sendGroupNotice(groupInfo.ID, notificationMsg); err != nil {
@@ -355,7 +363,7 @@ func SendMessageWithToken(userIDs []int, adminIDs []int, token string, date stri
 			reasonSection = fmt.Sprintf("\n- **预定理由**：%s", reason)
 		}
 		msg = fmt.Sprintf(`## 📢  会议提醒
-### **您有新的会议安排，请按时参加！**
+### **有新的会议安排，请按时参加！**
 
 - **会议室**：%s
 - **会议时间**：%s

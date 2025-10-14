@@ -5,6 +5,7 @@ import (
 	"roomly/models"
 	"strconv"
 
+	dootask "github.com/dootask/tools/server/go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,8 +43,8 @@ func SendMessageToUsers(c *gin.Context) {
 			token = authHeader
 		}
 	}
-	// 异步发送会议通知
-	models.SendMessageWithToken(userIDs, []int{}, token, date, timeSlots, roomName, "remind", reason, "")
+	// 使用新通道：创建群并发送会议通知（不再使用废弃方法）
+	_, _ = models.CreateGroupAndNotify(userIDs, token, date, timeSlots, roomName, reason, "")
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -81,8 +82,13 @@ func SendMeetingSummary(c *gin.Context) {
 			token = authHeader
 		}
 	}
-	// 异步发送会议纪要通知
-	models.SendMessageWithToken(userIDs, []int{}, token, date, timeSlots, roomName, "summary", "", "", summaryContent)
+	// 新通道：创建群并发送会议通知后，补发会议纪要文本
+	dialogID, _ := models.CreateGroupAndNotify(userIDs, token, date, timeSlots, roomName, "", "")
+	dt := models.NewDooTaskClient(token)
+	_ = dt.Client.SendMessage(dootask.SendMessageRequest{
+		DialogID: dialogID,
+		Text:     summaryContent,
+	})
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -117,6 +123,11 @@ func SendMeetingSummaryPost(c *gin.Context) {
 		}
 	}
 
-	models.SendMessageWithToken(req.UserIDs, []int{}, token, req.Date, req.TimeSlots, req.RoomName, "summary", "", "", req.SummaryContent)
+	dialogID, _ := models.CreateGroupAndNotify(req.UserIDs, token, req.Date, req.TimeSlots, req.RoomName, "", "")
+	dt := models.NewDooTaskClient(token)
+	_ = dt.Client.SendMessage(dootask.SendMessageRequest{
+		DialogID: dialogID,
+		Text:     req.SummaryContent,
+	})
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

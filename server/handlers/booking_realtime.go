@@ -33,10 +33,9 @@ func CheckAndUpdateExpiredBookings(bookings []models.Booking) []models.Booking {
 
 		// 检查是否已过期
 		if endTime.Before(now) || endTime.Equal(now) {
-			// 如果状态还是active，说明刚刚过期，需要发送会议结束通知
+			// 如果状态还是active，说明刚刚过期，仅更新状态（通知统一由 /api/bookings/scan-expired 负责）
 			if booking.Status == "active" {
-				// 发送会议结束通知
-				go sendMeetingEndNotification(*booking)
+				// 后台实时路径不再发送通知，避免无 token 情况下误触发
 			}
 			booking.Status = "expired"
 			// 立即更新数据库
@@ -137,17 +136,7 @@ func sendMeetingEndNotification(booking models.Booking) {
 		return
 	}
 
-	// 这里需要获取member的token，但当前模型中没有存储token
-	// 在实际应用中，可能需要从其他地方获取token，或者使用系统默认token
-	// 暂时使用用户提供的示例token
-	token := "YIG8ANC8q2QVN_VU6p3rbD0dI9qf4cU6K7i6ItZZfjx1G46U875Mk5ZgrPsbELo9OzKuKsU-PujpV6EiVYqeyhTkAmKBO5fpeXSxZcs5TdDzFxfVpYF9bgA__nKEJOea"
-
-	client := models.NewDooTaskClient(token)
-
-	// 发送会议结束通知
-	if err := client.SendMeetingEndNotification(booking.DialogID); err != nil {
-		fmt.Printf("发送会议结束通知失败: %v\n", err)
-	} else {
-		fmt.Printf("会议结束通知发送成功，DialogID: %d\n", booking.DialogID)
-	}
+	// 实时路径缺少请求上下文与有效 token 来源，为避免误用写死 token或空 token，这里不直接发送通知。
+	// 建议使用前端触发的 /api/bookings/scan-expired 接口进行统一通知（该接口已从 Authorization 获取并清洗 token）。
+	fmt.Printf("[realtime] 跳过发送会议结束通知：无可用 token（请通过 scan-expired 接口统一发送） bookingID=%d dialogID=%d\n", booking.ID, booking.DialogID)
 }

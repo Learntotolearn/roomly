@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 获取所有预定记录
 func GetBookings(c *gin.Context) {
 	// 解析分页参数
 	pageStr := c.DefaultQuery("page", "1")
@@ -25,6 +24,7 @@ func GetBookings(c *gin.Context) {
 	if err != nil || page < 1 {
 		page = 1
 	}
+
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil || pageSize < 1 {
 		pageSize = 20

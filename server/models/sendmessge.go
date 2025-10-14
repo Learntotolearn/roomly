@@ -37,16 +37,17 @@ type DooTaskClient struct {
 
 func NewDooTaskClient(token string) DooTaskClient {
 	// 支持从环境变量读取 dootask 服务地址，默认 127.0.0.1
-	server := os.Getenv("DOOTASK_SERVER")
-	if server == "" {
-		server = "http://127.0.0.1"
-	}
+	//server := os.Getenv("DOOTASK_SERVER")
+	//if server == "" {
+	//	server = "http://127.0.0.1"
+	//}
 	// 初始化日志，便于核对目标地址与令牌长度
-	fmt.Printf("[dootask] init client server=%s tokenLen=%d\n", server, len(token))
+	//fmt.Printf("[dootask] init client server=%s tokenLen=%d\n", server, len(token))
 
 	return DooTaskClient{
-		Client: dootask.NewClient(token, dootask.WithServer(server)),
-		Token:  token,
+		Client: dootask.NewClient(token),
+		//Client: dootask.NewClient(token, dootask.WithServer(server)),
+		Token: token,
 	}
 }
 

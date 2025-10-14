@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient }from '@tanstack/react-query';
-import { memberApi, bookingApi, userApi, recordingGroupApi }from '@/lib/api';
+import { memberApi, bookingApi, recordingGroupApi }from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -355,9 +355,11 @@ export default function MyBookingsPage() {
       const cleanedAi = aiSummary ? cleanThink(aiSummary) : '';
       const looksLikeFullMinutes = /(^#\s*会议纪要)|(^\*\*会议信息\*\*)/m.test(cleanedAi);
 
-      // 只发送“会议纪要”主体内容
-      const summaryContent = (cleanedAi && looksLikeFullMinutes)
-        ? cleanedAi
+      // 优先使用当前编辑内容；否则生成完整模板（含要点/行动/备注）
+      const useEditor =
+        currentBooking && currentBooking.id === targetBooking.id && meetingSummary && meetingSummary.trim().length > 0;
+      const summaryContent = useEditor
+        ? meetingSummary.trim()
         : [
             '# 会议纪要',
             '',
@@ -368,25 +370,56 @@ export default function MyBookingsPage() {
             `- 会议发起人：${initiator}${initiator ? ` (${initiatorRole})` : ''}`,
             `- 预定理由：${targetBooking.reason || ''}`,
             '',
-            '**会议纪要内容**',
-            (cleanedAi && cleanedAi.length > 0) ? cleanedAi : '暂无会议纪要内容',
+            '**会议要点**',
+            (cleanedAi && cleanedAi.length > 0) ? cleanedAi : '（待补充）',
+            '',
+            '**后续行动**',
+            '- [ ] ',
+            '- [ ] ',
+            '',
+            '**备注**',
+            '',
           ].join('\n');
       
 
       
       // 显示发送中提示
-      toast.info(`正在发送会议纪要通知给 ${userIds.length} 位参会人员...`);
+
       
       // 发送会议纪要通知（使用新的 POST 接口）
       // 仅发送正文，去掉 date/timeSlots/roomName 以避免服务端自动加“会议纪要通知”头部
-      await userApi.sendMeetingSummary(
-        userIds,
+      await bookingApi.sendSummaryToGroup(
+        targetBooking.id,
         summaryContent
       );
       
       
       // 成功提示
-      toast.success(`✅ 会议纪要通知已成功发送给 ${userIds.length} 位参会人员！`);
+      {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+        const opts = isMobile
+          ? {
+              duration: 1000,
+              position: 'bottom-right' as const,
+              style: {
+                fontSize: '13px',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                maxWidth: '50vw'
+              }
+            }
+          : {
+              duration: 2000,
+              position: 'bottom-right' as const,
+              style: {
+                fontSize: '14px',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                maxWidth: '68vw'
+              }
+            };
+        toast.success('已发送成功', opts);
+      }
       
     } catch (error) {
       console.error('发送会议纪要通知失败:', error);

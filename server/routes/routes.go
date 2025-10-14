@@ -66,6 +66,7 @@ func SetupRoutes() *gin.Engine {
 			bookings.GET("/available-slots", handlers.GetAvailableSlots)
 			bookings.POST("/:id/summary", handlers.SaveMeetingSummary)
 			bookings.GET("/:id/summary", handlers.GetMeetingSummary)
+			bookings.POST("/:id/summary/send", handlers.SendBookingSummaryToGroup)
 			// 新增：前端触发扫描过期会议接口
 			bookings.GET("/scan-expired", handlers.ScanExpiredBookings)
 		}

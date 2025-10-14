@@ -259,6 +259,37 @@ export const bookingApi = {
     });
   },
 
+  // 将会议纪要发送到当前会议的群组（DialogID）
+  sendSummaryToGroup: async (bookingId: number, summaryContent?: string) => {
+    try {
+      const { getUserToken } = await import('@dootask/tools');
+      let token = '';
+      try {
+        token = await getUserToken();
+      } catch (e) {
+        console.error('[send-summary] getUserToken failed');
+      }
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const hasBody = !!(summaryContent && summaryContent.trim());
+      if (hasBody) headers['Content-Type'] = 'application/json';
+
+      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}/summary/send`, {
+        method: 'POST',
+        headers,
+        body: hasBody ? JSON.stringify({ summary_content: summaryContent }) : undefined,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || '发送会议纪要失败');
+      }
+      return await res.json();
+    } catch (err) {
+      console.error('sendSummaryToGroup error:', err as any);
+      throw err;
+    }
+  },
+
   // 保存会议纪要（外部录音服务）：优先按 groupId 更新；否则按 groupName upsert
   saveMeetingSummary: async (
     groupId: number,

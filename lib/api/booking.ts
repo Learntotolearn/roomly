@@ -71,4 +71,30 @@ export const bookingApi = {
     }
     return response.json();
   },
+
+  async sendSummaryToGroup(bookingId: number, summaryContent?: string) {
+    // 读取用户令牌
+    let token = '';
+    try {
+      token = await getUserToken();
+    } catch (e) {
+      console.error('[send-summary] getUserToken failed');
+    }
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const hasBody = !!(summaryContent && summaryContent.trim());
+    if (hasBody) headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(`${API_BASE}/bookings/${bookingId}/summary/send`, {
+      method: 'POST',
+      headers,
+      body: hasBody ? JSON.stringify({ summary_content: summaryContent }) : undefined,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || '发送会议纪要失败');
+    }
+    return res.json();
+  },
 };

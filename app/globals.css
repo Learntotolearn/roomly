@@ -188,4 +188,27 @@
   *::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  /* 移动端覆盖 Sonner 的默认左对齐，保持右下角 */
+  @media (max-width: 600px) {
+    /* Toaster 容器在右侧，取消左侧偏移 */
+    [data-sonner-toaster][data-x-position='right'] {
+      right: var(--mobile-offset-right, 16px) !important;
+      left: auto !important;
+    }
+    /* 覆盖库的默认 left: 0 */
+    [data-sonner-toaster] [data-sonner-toast] {
+      left: auto !important;
+    }
+    /* 每条 toast 右对齐 */
+    [data-sonner-toaster] [data-sonner-toast][data-x-position='right'] {
+      right: 0 !important;
+      left: auto !important;
+    }
+    /* 底部偏移保持 */
+    [data-sonner-toaster][data-y-position='bottom'] {
+      bottom: var(--mobile-offset-bottom, 16px) !important;
+      top: auto !important;
+    }
+  }
 }

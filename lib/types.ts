@@ -24,6 +24,7 @@ export interface Booking {
   id: number;
   room_id: number;
   member_id: number;
+  dialog_id?: number;
   date: string;
   start_time: string;
   end_time: string;

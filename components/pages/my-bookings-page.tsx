@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Calendar, Clock, MapPin, CalendarOff, Loader2, Timer, RefreshCcw, Edit, UserPlus } from 'lucide-react';
-import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon } from '@/components/ui/icons';
+import { Calendar, Clock, MapPin, CalendarOff, Loader2, Timer, RefreshCcw, Edit, UserPlus, MessageCircleMore } from 'lucide-react';
+import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon  } from '@/components/ui/icons';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { format } from 'date-fns';
 import { Booking, BookingUser } from '@/lib/types';
@@ -19,6 +19,7 @@ import { CancelBookingDialog } from '@/components/ui/cancel-booking-dialog';
 import RescheduleBookingDialog from '@/components/ui/reschedule-booking-dialog';
 import { EditParticipantsDialog } from '@/components/ui/edit-participants-dialog';
 import { toast } from "sonner";
+import { openDialog as dooOpenDialog } from '@dootask/tools';
 
 // 录音状态接口
 interface RecordingState {
@@ -70,6 +71,8 @@ export default function MyBookingsPage() {
   
   // 会议纪要弹窗
   const [meetingSummaryDialogOpen, setMeetingSummaryDialogOpen] = useState(false);
+  // 发送会议纪要确认弹窗
+  const [sendSummaryConfirmBooking, setSendSummaryConfirmBooking] = useState<Booking | null>(null);
   const [currentBooking, setCurrentBooking] = useState<Booking | null>(null);
   const [meetingSummary, setMeetingSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -324,7 +327,11 @@ export default function MyBookingsPage() {
     }
   };
 
+  const openSendSummaryConfirm = (targetBooking: Booking) => {
+    setSendSummaryConfirmBooking(targetBooking);
+  };
   const handlePlaneAction = async (targetBooking: Booking) => {
+
     try {
       
       // 获取参会人员ID列表
@@ -597,6 +604,31 @@ export default function MyBookingsPage() {
   
 
 
+
+  // 打开群组会话（dootask）
+  const handleOpenGroupDialog = async (dialogId?: number) => {
+    if (!dialogId) return;
+    // 优先使用 @dootask/tools 标准实现
+    try {
+      await dooOpenDialog(dialogId);
+      return;
+    } catch (e) {
+      // 回退到 window 注入的实现
+      try {
+        const w: any = typeof window !== 'undefined' ? window : {};
+        const opener =
+          (w.DooTask && typeof w.DooTask.openDialog === 'function' && w.DooTask.openDialog) ||
+          (typeof w.openDialog === 'function' && w.openDialog);
+        if (opener) {
+          await opener(dialogId);
+          return;
+        }
+        console.warn('openDialog 未在当前环境中可用');
+      } catch (err) {
+        console.warn('openDialog 调用失败或环境不支持', err);
+      }
+    }
+  };
 
   const handleOpenMeetingSummary = async (booking: Booking) => {
     setCurrentBooking(booking);
@@ -923,7 +955,7 @@ export default function MyBookingsPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
-                                        onClick={() => handlePlaneAction(booking)}
+                                        onClick={() => openSendSummaryConfirm(booking)}
                                         className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
                                       >
                                         <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
@@ -1002,6 +1034,17 @@ export default function MyBookingsPage() {
                       </div>
                       <div className="flex flex-col-reverse sm:flex-row items-center sm:items-center gap-2 sm:gap-2 ml-4 flex-shrink-0">
                         <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                onClick={() => handleOpenGroupDialog(booking.dialog_id)}
+                                className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-green-100 flex items-center justify-center"
+                              >
+                                <MessageCircleMore className="w-4 h-4" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>打开群组会话</TooltipContent>
+                          </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div
@@ -1094,15 +1137,26 @@ export default function MyBookingsPage() {
                     </div>
                     
                     {/* 右侧操作区域 */}
-                    <div className="flex items-start space-x-2 flex-shrink-0">
+                    <div className="flex items-center space-x-2 flex-shrink-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div
-                              onClick={() => handleOpenMeetingSummary(booking)}
-                              className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center"
+                              onClick={() => handleOpenGroupDialog(booking.dialog_id)}
+                              className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-green-100 flex items-center justify-center"
                             >
-                              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <MessageCircleMore className="w-4 h-4" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>打开群组会话</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              onClick={() => handleOpenMeetingSummary(booking)}
+                              className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center"
+                            >
+                              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                             </div>
@@ -1392,6 +1446,32 @@ export default function MyBookingsPage() {
                 className="w-full h-full p-4 border border-border rounded-lg resize-none bg-background text-foreground"
                 style={{ fontFamily: 'monospace' }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 发送会议纪要确认弹窗 */}
+      {sendSummaryConfirmBooking && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-card text-card-foreground rounded-lg p-5 w-full max-w-md shadow-lg mx-4 sm:mx-0">
+            <div>
+              <h3 className="text-base font-semibold mb-1">确认发送会议纪要</h3>
+              <p className="text-sm text-muted-foreground">
+                将把当前会议的纪要内容发送到对应群组，是否确认发送？
+              </p>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSendSummaryConfirmBooking(null)}>取消</Button>
+              <Button
+                onClick={async () => {
+                  const booking = sendSummaryConfirmBooking!;
+                  setSendSummaryConfirmBooking(null);
+                  await handlePlaneAction(booking);
+                }}
+              >
+                确认发送
+              </Button>
             </div>
           </div>
         </div>

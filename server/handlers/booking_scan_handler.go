@@ -65,14 +65,7 @@ func ScanExpiredBookings(c *gin.Context) {
 
 	// 优先使用前端传入的 Authorization 令牌；未提供则跳过通知，仅做过期状态更新
 	authHeader := c.GetHeader("Authorization")
-	// 打印原始 Authorization 头（掩码），用于核对前端传入内容是否到达后端
-	if len(authHeader) > 0 {
-		raw := authHeader
-		if len(raw) > 16 {
-			raw = raw[:8] + "..." + raw[len(raw)-8:]
-		}
-		fmt.Printf("[scan-expired] raw Authorization=%s\n", raw)
-	}
+
 	var token string
 	if len(authHeader) > 0 {
 		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
@@ -89,18 +82,14 @@ func ScanExpiredBookings(c *gin.Context) {
 		fmt.Printf("[scan-expired] Authorization 未提供，跳过群通知，仅更新过期状态\n")
 		skipNotify = true
 	} else {
-		masked := token
-		if len(token) > 12 {
-			masked = token[:6] + "..." + token[len(token)-6:]
-		}
-		fmt.Printf("[scan-expired] Authorization token=%s len=%d\n", masked, len(token))
+		// Authorization token provided (logging suppressed)
 	}
 	// 记录 dootask server，用于排查连接目标是否正确
 	server := os.Getenv("DOOTASK_SERVER")
 	if server == "" {
 		server = "http://127.0.0.1"
 	}
-	fmt.Printf("[scan-expired] dootask server=%s\n", server)
+
 
 	dt := models.NewDooTaskClient(token)
 

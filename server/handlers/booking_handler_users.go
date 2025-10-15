@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"roomly/database"
 	"roomly/models"
 	"strings"
@@ -43,11 +42,10 @@ func UpdateBookingUsers(c *gin.Context) {
 	// 获取原有参会人员信息（在事务开始前获取）
 	var originalBookingUsers []models.BookingUser
 	if err := database.DB.Where("booking_id = ?", bookingID).Find(&originalBookingUsers).Error; err != nil {
-		fmt.Printf("Error fetching original booking users: %v\n", err)
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get original booking users"})
 		return
 	}
-	fmt.Printf("Original booking users: %+v\n", originalBookingUsers)
 
 	// 开始事务
 	tx := database.DB.Begin()
@@ -70,7 +68,7 @@ func UpdateBookingUsers(c *gin.Context) {
 		}
 
 		if err := tx.Create(&bookingUser).Error; err != nil {
-			fmt.Printf("Error creating booking user: %v\n", err)
+
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking user: " + err.Error()})
 			return
@@ -148,12 +146,9 @@ func UpdateBookingUsers(c *gin.Context) {
 		if !originalUserMap[user.Userid] {
 			addedUserIDs = append(addedUserIDs, int(user.Userid))
 			addedUserNames = append(addedUserNames, user.Nickname)
-			fmt.Printf("Found new participant: %s (ID: %d)\n", user.Nickname, user.Userid)
+
 		}
 	}
-
-	fmt.Printf("Added user IDs: %v\n", addedUserIDs)
-	fmt.Printf("Added user names: %v\n", addedUserNames)
 
 	// 获取所有参会用户昵称（用于管理员通知）——以数据库最新记录为准
 	var attendeeNames []string
@@ -164,7 +159,7 @@ func UpdateBookingUsers(c *gin.Context) {
 
 	// 3. 向被移除的参会人员发送提醒（不再发送“会议已取消”）
 	if len(removedUserIDs) > 0 {
-		fmt.Printf("Notify removed users (DM) and post group update: %v\n", removedUserIDs)
+
 		dt := models.NewDooTaskClient(token)
 
 		// 机器人私信提醒每位被移除的参会者
@@ -185,12 +180,12 @@ func UpdateBookingUsers(c *gin.Context) {
 			}
 			// 在群组中发送“参会人员更新”普通消息，避免出现“会议已取消”的误导性提示
 			removedList := strings.Join(removedUserNames, "、")
-			groupMsg := fmt.Sprintf(`### 参会人员更新
-- 会议室：%s
-- 时间：%s %s-%s
+			groupMsg := fmt.Sprintf(`## 📢  参会人员变更
 
+- 会议室：%s
+- 时间：%s %s
 - 移除：%s
-- 当前参会：%s`, roomName, booking.Date, booking.StartTime, booking.EndTime, removedList, attendees)
+- 当前参会人员：%s`, roomName, booking.Date, strings.Join(timeSlots, "-"), removedList, attendees)
 			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
 				DialogID: int(booking.DialogID),
 				Text:     groupMsg,
@@ -217,7 +212,6 @@ func UpdateBookingUsers(c *gin.Context) {
 
 	// 4. 向新增的参会人员发送通知
 	if len(addedUserIDs) > 0 {
-		fmt.Printf("Sending invitation to new users: %v\n", addedUserIDs)
 
 		// 确保异步发送消息前所有数据都已准备好
 		addedUserIDsCopy := make([]int, len(addedUserIDs))
@@ -251,12 +245,11 @@ func UpdateBookingUsers(c *gin.Context) {
 			}
 			// 群内汇总文案：参会人员更新（新增）
 			addedList := strings.Join(addedUserNamesCopy, "、")
-			groupMsg := fmt.Sprintf(`### 参会人员更新
+			groupMsg := fmt.Sprintf(`## 📢  参会人员变更
 - 会议室：%s
 - 时间：%s %s
-
 - 新增：%s
-- 当前参会：%s`, roomNameCopy, dateCopy, strings.Join(timeSlotsCopy, "-"), addedList, attendeesCopy)
+- 当前参会人员：%s`, roomNameCopy, dateCopy, strings.Join(timeSlotsCopy, "-"), addedList, attendeesCopy)
 			_ = dt.Client.SendMessage(dootask.SendMessageRequest{
 				DialogID: int(booking.DialogID),
 				Text:     groupMsg,
@@ -265,52 +258,11 @@ func UpdateBookingUsers(c *gin.Context) {
 
 		// 使用goroutine确保消息发送不会阻塞API响应
 		go func() {
-			fmt.Printf("Sending admin notifications for participants update: added=%v removed=%v\n", addedUserNamesCopy, removedUserNamesCopy)
-			// 管理员机器人提醒（已禁用对会议室管理员的人员变动通知）
-			return
-			if len(adminIDsCopy) > 0 {
-				adminMsg := fmt.Sprintf(`## 会议参会人员更新
-- 会议室：%s
-- 时间：%s %s
+			// 管理员机器人提醒已禁用，避免发送人员变动通知
 
-- 新增：%s
-- 移除：%s
-- 当前参会：%s`,
-					roomNameCopy,
-					dateCopy,
-					strings.Join(timeSlotsCopy, "-"),
-					strings.Join(addedUserNamesCopy, "、"),
-					strings.Join(removedUserNamesCopy, "、"),
-					attendeesCopy,
-				)
-				botToken := os.Getenv("MEETING_BOT_TOKEN")
-				if botToken == "" {
-					botToken = tokenCopy
-				}
-				adminClient := models.NewDooTaskClient(botToken)
-				seen := make(map[int]struct{})
-				// 构建新增人员ID集合，避免新增人员收到管理员汇总通知
-				addedSet := make(map[int]struct{})
-				for _, uid := range addedUserIDsCopy {
-					addedSet[uid] = struct{}{}
-				}
-				for _, adminID := range adminIDsCopy {
-					// 去重
-					if _, ok := seen[adminID]; ok {
-						continue
-					}
-					// 跳过新增人员（如果他也是管理员）
-					if _, isAdded := addedSet[adminID]; isAdded {
-						continue
-					}
-					seen[adminID] = struct{}{}
-					_ = adminClient.SendBotMessage(uint(adminID), adminMsg)
-				}
-			}
-			fmt.Printf("Admin notifications sent\n")
 		}()
 	} else {
-		fmt.Printf("No new participants to notify\n")
+
 	}
 
 	c.JSON(http.StatusOK, booking)

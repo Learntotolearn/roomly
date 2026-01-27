@@ -110,6 +110,44 @@ func UpdateBookingUsers(c *gin.Context) {
 		adminIDs = append(adminIDs, int(admin.DootaskID))
 	}
 
+	// 0. 懒加载创建群组：如果当前无群组且人数 >= 2，则尝试创建（仅创建，不发送重复通知）
+	bookingUsersCount := len(booking.BookingUsers)
+	if booking.DialogID == 0 && bookingUsersCount >= 2 {
+		var allUserIDs []int
+		for _, u := range booking.BookingUsers {
+			allUserIDs = append(allUserIDs, int(u.Userid))
+		}
+
+		// 创建群组，CreateGroupAndNotify内部会：
+		// 1. 创建群组
+		// 2. 发送"会议通知"到群内
+		// 3. (注意) 它发送的是"会议通知"，而下面逻辑发送的是"变更通知"
+		// 为了避免冲突，我们这里创建群组后，不更新 booking.DialogID 到内存变量，
+		// 这样后续的 UpdateBookingUsers 逻辑（判断 DialogID > 0 的部分）会被跳过，
+		// 从而避免发送重复的/不合适的"变更通知"。
+		// 
+		// 这样：
+		// - 新创建时：用户收到"会议通知"（CreateGroupAndNotify）
+		// - 仅变更时（已有群）：用户收到"变更通知"（后续逻辑）
+		
+		fmt.Printf("触发懒加载创建群组: users=%d\n", bookingUsersCount)
+		// 收集参数
+		attendeeNames := []string{}
+		for _, u := range booking.BookingUsers {
+			attendeeNames = append(attendeeNames, u.Nickname)
+		}
+		attendeesStr := strings.Join(attendeeNames, "、")
+
+		dialogID, err := models.CreateGroupAndNotify(allUserIDs, token, booking.Date, timeSlots, roomName, booking.Reason, attendeesStr)
+		if err != nil {
+			fmt.Printf("懒加载创建群组失败: %v\n", err)
+		} else {
+			// 仅保存到数据库，不更新 booking 变量，以跳过后续逻辑
+			database.DB.Model(&models.Booking{}).Where("id = ?", booking.ID).Update("dialog_id", dialogID)
+			fmt.Printf("懒加载创建群组成功: DialogID=%d\n", dialogID)
+		}
+	}
+
 	// 1. 识别被移除的参会人员
 	var removedUserIDs []int
 	var removedUserMap = make(map[uint]bool)

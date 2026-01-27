@@ -54,7 +54,7 @@ export const bookingApi = {
 
     // 3) 清洗令牌：去空白与首尾引号，避免出现 Bearer "xxx"
     token = token.trim().replace(/^"+|"+$/g, '').replace(/^'+|'+$/g, '')
-    const masked = token.length > 12 ? `${token.slice(0,6)}...${token.slice(-6)}` : (token || '(none)')
+    const masked = token.length > 12 ? `${token.slice(0, 6)}...${token.slice(-6)}` : (token || '(none)')
     console.log('[scan-expired] Authorization token:', masked, 'len=', token.length)
 
     if (token && token.length > 0) {

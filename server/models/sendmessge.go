@@ -224,6 +224,12 @@ func CreateGroupAndNotify(userIDs []int, token string, date string, timeSlots []
 		}
 	}
 
+	// 检查人数是否足够（至少2人）
+	if len(uniqueUserIDs) < 2 {
+		fmt.Printf("人数不足2人（当前%d人），不创建群组\n", len(uniqueUserIDs))
+		return 0, nil
+	}
+
 	// 创建群组并发送通知
 	dialogID, err := client.CreateGroupAndSendNotification(uniqueUserIDs, roomName, date, timeSlots, reason, attendees)
 	if err != nil {

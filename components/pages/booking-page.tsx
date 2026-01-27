@@ -397,6 +397,7 @@ export default function BookingPage() {
                   title: '选择参会人员',
                   placeholder: '请选择参会人员',
                 }).then((users) => {
+                  if (!users) return;
                   setParticipantUserIds(users); // 只存ID
                   setParticipantLoading(true);
                   requestAPI({

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMutation, useQueryClient }from '@tanstack/react-query';
-import { memberApi, bookingApi, recordingGroupApi }from '@/lib/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { memberApi, bookingApi, recordingGroupApi } from '@/lib/api';
 import { useAppContext } from '@/lib/context/app-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Calendar, Clock, MapPin, CalendarOff, Loader2, Timer, RefreshCcw, Edit, UserPlus, MessageCircleMore } from 'lucide-react';
-import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon  } from '@/components/ui/icons';
+import { MicrophoneIcon, StopIcon, SearchIcon, AiIcon, PlaneIcon } from '@/components/ui/icons';
 import { AudioPlayer } from '@/components/ui/audio-player';
 import { format } from 'date-fns';
 import { Booking, BookingUser } from '@/lib/types';
@@ -46,7 +46,7 @@ interface Recording {
 export default function MyBookingsPage() {
   const { currentMember } = useAppContext();
   const queryClient = useQueryClient();
-  const ENABLE_SUMMARY_API ='true';
+  const ENABLE_SUMMARY_API = 'true';
   const RECORDSRV_BASE = process.env.NEXT_PUBLIC_RECORDSRV_BASE || 'https://recordsrv-server.keli.vip';
   const RECORDSRV_USERNAME = process.env.NEXT_PUBLIC_RECORDSRV_USERNAME || 'admin';
   const RECORDSRV_PASSWORD = process.env.NEXT_PUBLIC_RECORDSRV_PASSWORD || 'admin';
@@ -59,7 +59,7 @@ export default function MyBookingsPage() {
   // 取消预定弹窗
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBookingId, setCancelBookingId] = useState<number | null>(null);
-  
+
   // 编辑参会人员弹窗
   const [editParticipantsDialogOpen, setEditParticipantsDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -68,7 +68,7 @@ export default function MyBookingsPage() {
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
   const [isRescheduling, setIsRescheduling] = useState(false);
-  
+
   // 会议纪要弹窗
   const [meetingSummaryDialogOpen, setMeetingSummaryDialogOpen] = useState(false);
   // 发送会议纪要确认弹窗
@@ -76,7 +76,7 @@ export default function MyBookingsPage() {
   const [currentBooking, setCurrentBooking] = useState<Booking | null>(null);
   const [meetingSummary, setMeetingSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  
+
   // 编辑分析弹窗
   const [editAnalysisDialogOpen, setEditAnalysisDialogOpen] = useState(false);
   const [editingRecording, setEditingRecording] = useState<Recording | null>(null);
@@ -153,7 +153,7 @@ export default function MyBookingsPage() {
       });
       const matched = clean.filter(r => (r.title || '').includes(title) || title.includes(r.title || ''));
       const list = matched.length > 0 ? matched : clean;
-      
+
       // 去重：根据 ID 去重，保留最新的
       const uniqueMap = new Map<number, Recording>();
       list.forEach(r => {
@@ -162,7 +162,7 @@ export default function MyBookingsPage() {
         }
       });
       const uniqueList = Array.from(uniqueMap.values());
-      
+
       // 按上传时间排序
       uniqueList.sort((a, b) => new Date(b.upload_time).getTime() - new Date(a.upload_time).getTime());
 
@@ -192,13 +192,13 @@ export default function MyBookingsPage() {
       updateRecordingState(bookingId, { selectedId: null, audioURL: null });
       return;
     }
-    
+
     const id = parseInt(value, 10);
     if (isNaN(id)) {
       console.error('选择录音: 无效的ID', { bookingId, value, id });
       return;
     }
-    
+
     const current = getRecordingState(bookingId);
     const found = current.recordings.find(r => r.id === id);
     if (found) {
@@ -215,22 +215,22 @@ export default function MyBookingsPage() {
       formData.append('user', '1');
       formData.append('title', title);
       formData.append('audio_file', blob, `recording-${Date.now()}.webm`);
-      
-      
+
+
       const res = await fetch(`${RECORDSRV_BASE}/recordings/Recording/`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error('上传录音失败 - HTTP错误:', { status: res.status, statusText: res.statusText, error: errorText });
         throw new Error(`上传失败: ${res.status} ${res.statusText}`);
       }
-      
+
       const data = await res.json();
-      
+
       // 验证响应数据是否包含必要的字段（兼容大小写）
       const serverData = data as unknown as Record<string, unknown>;
       const recordingId = serverData.id || serverData.Id;
@@ -238,14 +238,14 @@ export default function MyBookingsPage() {
         console.error('录音上传响应缺少必要字段:', data);
         return null;
       }
-      
+
       // 标准化数据格式
       const normalizedData = {
         ...data,
         id: recordingId as number, // 统一使用小写 id
         duration: (serverData.duration as number) || null, // 允许 duration 为 null
       };
-      
+
       return normalizedData as Recording;
     } catch (e) {
       console.error('上传录音失败:', e);
@@ -333,24 +333,24 @@ export default function MyBookingsPage() {
   const handlePlaneAction = async (targetBooking: Booking) => {
 
     try {
-      
+
       // 获取参会人员ID列表
       const userIds = targetBooking.booking_users?.map(u => u.userid) || [];
-      
+
       if (userIds.length === 0) {
         toast.error('没有找到参会人员，无法发送会议纪要通知');
         return;
       }
-      
+
       // 生成会议纪要通知内容（智能选择：若AI已是完整纪要，则直接发送AI内容）
       const rs = getRecordingState(targetBooking.id);
       const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
       const title = `${formatDate(targetBooking.date)}-${targetBooking.start_time}-${targetBooking.end_time}`;
-      
+
       // 优先从分组接口读取已完成的分析
       let aiSummary = await fetchGroupAnalysisByTitle(title);
       if (!aiSummary) aiSummary = selected?.analysis?.trim() || '';
-      
+
       const attendeeNames = (targetBooking.booking_users?.map(u => u.nickname).join('、')) || '';
       const initiator = targetBooking.member?.name || '';
       const initiatorRole = targetBooking.member?.is_admin ? '管理员' : '成员';
@@ -368,66 +368,66 @@ export default function MyBookingsPage() {
       const summaryContent = useEditor
         ? meetingSummary.trim()
         : [
-            '# 会议纪要',
-            '',
-            '**会议信息**',
-            `- 会议室：${targetBooking.room?.name || ''}`,
-            `- 会议时间：${dateStr}`,
-            `- 参会人员：${attendeeNames}`,
-            `- 会议发起人：${initiator}${initiator ? ` (${initiatorRole})` : ''}`,
-            `- 预定理由：${targetBooking.reason || ''}`,
-            '',
-            '**会议要点**',
-            (cleanedAi && cleanedAi.length > 0) ? cleanedAi : '（待补充）',
-            '',
-            '**后续行动**',
-            '- [ ] ',
-            '- [ ] ',
-            '',
-            '**备注**',
-            '',
-          ].join('\n');
-      
+          '# 会议纪要',
+          '',
+          '**会议信息**',
+          `- 会议室：${targetBooking.room?.name || ''}`,
+          `- 会议时间：${dateStr}`,
+          `- 参会人员：${attendeeNames}`,
+          `- 会议发起人：${initiator}${initiator ? ` (${initiatorRole})` : ''}`,
+          `- 预定理由：${targetBooking.reason || ''}`,
+          '',
+          '**会议要点**',
+          (cleanedAi && cleanedAi.length > 0) ? cleanedAi : '（待补充）',
+          '',
+          '**后续行动**',
+          '- [ ] ',
+          '- [ ] ',
+          '',
+          '**备注**',
+          '',
+        ].join('\n');
 
-      
+
+
       // 显示发送中提示
 
-      
+
       // 发送会议纪要通知（使用新的 POST 接口）
       // 仅发送正文，去掉 date/timeSlots/roomName 以避免服务端自动加“会议纪要通知”头部
       await bookingApi.sendSummaryToGroup(
         targetBooking.id,
         summaryContent
       );
-      
-      
+
+
       // 成功提示
       {
         const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
         const opts = isMobile
           ? {
-              duration: 1000,
-              position: 'bottom-right' as const,
-              style: {
-                fontSize: '13px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                maxWidth: '50vw'
-              }
+            duration: 1000,
+            position: 'bottom-right' as const,
+            style: {
+              fontSize: '13px',
+              padding: '10px 12px',
+              borderRadius: '10px',
+              maxWidth: '50vw'
             }
+          }
           : {
-              duration: 2000,
-              position: 'bottom-right' as const,
-              style: {
-                fontSize: '14px',
-                padding: '12px 14px',
-                borderRadius: '10px',
-                maxWidth: '68vw'
-              }
-            };
+            duration: 2000,
+            position: 'bottom-right' as const,
+            style: {
+              fontSize: '14px',
+              padding: '12px 14px',
+              borderRadius: '10px',
+              maxWidth: '68vw'
+            }
+          };
         toast.success('已发送成功', opts);
       }
-      
+
     } catch (error) {
       console.error('发送会议纪要通知失败:', error);
       toast.error('❌ 发送会议纪要通知失败');
@@ -496,7 +496,7 @@ export default function MyBookingsPage() {
     try {
       const { filtered } = await loadBookings();
       const active: Booking[] = []; const expired: Booking[] = []; const cancelled: Booking[] = [];
-      
+
       // 完全依赖后端返回的status字段，不再做前端过期判断
       filtered.forEach((b: Booking) => {
         if (b.status === 'cancelled') {
@@ -507,7 +507,7 @@ export default function MyBookingsPage() {
           active.push(b);
         }
       });
-      
+
       setActiveBookings(active); setExpiredBookings(expired); setCancelledBookings(cancelled);
     } catch (e) { console.error('加载预定数据失败:', e); }
     finally { setActiveLoading(false); setExpiredLoading(false); setCancelledLoading(false); }
@@ -528,7 +528,7 @@ export default function MyBookingsPage() {
 
   // 更新参会人员的mutation
   const updateParticipantsMutation = useMutation({
-    mutationFn: ({ bookingId, bookingUsers }: { bookingId: number; bookingUsers: BookingUser[] }) => 
+    mutationFn: ({ bookingId, bookingUsers }: { bookingId: number; bookingUsers: BookingUser[] }) =>
       bookingApi.updateBookingUsers(bookingId, bookingUsers),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['member-bookings'] });
@@ -592,7 +592,7 @@ export default function MyBookingsPage() {
   // 保存参会人员更新
   const handleSaveParticipants = (participants: BookingUser[]) => {
     if (!editingBooking) return;
-    
+
     setIsUpdatingParticipants(true);
     updateParticipantsMutation.mutate({
       bookingId: editingBooking.id,
@@ -601,13 +601,27 @@ export default function MyBookingsPage() {
   };
 
   // 检查录音分析状态
-  
+
 
 
 
   // 打开群组会话（dootask）
-  const handleOpenGroupDialog = async (dialogId?: number) => {
-    if (!dialogId) return;
+  const handleOpenGroupDialog = async (booking: Booking) => {
+    // 检查人数是否足够（至少2人）
+    // 注意：后端逻辑是去重后的 userIDs < 2 不创建。这里简单判断 booking_users 长度。
+    // 如果 booking_users 包含创建者，则直接用 length。
+    const userCount = booking.booking_users?.length || 0;
+    if (userCount < 2) {
+      toast.info('会议人数不足2人，未创建群组');
+      return;
+    }
+
+    const dialogId = booking.dialog_id;
+    if (!dialogId) {
+      toast.info('群组正在初始化，请稍后...');
+      reloadAllBookings();
+      return;
+    }
     // 优先使用 @dootask/tools 标准实现
     try {
       await dooOpenDialog(dialogId);
@@ -634,7 +648,7 @@ export default function MyBookingsPage() {
     setCurrentBooking(booking);
     setMeetingSummary('');
     setMeetingSummaryDialogOpen(true);
-    
+
     // 加载录音分组内容（不再调用 bookings/{id}/summary 接口）
     if (ENABLE_SUMMARY_API) {
       try {
@@ -678,18 +692,18 @@ export default function MyBookingsPage() {
   // 保存分析内容
   const handleSaveAnalysis = async () => {
     if (!editingRecording) return;
-    
+
     setIsUpdatingAnalysis(true);
     try {
       toast.success('录音分析内容已更新');
       setEditAnalysisDialogOpen(false);
-      
+
       // 刷新录音列表以显示更新后的内容
       const title = `${formatDate(currentBooking?.date || '')}-${currentBooking?.start_time || ''}-${currentBooking?.end_time || ''}`;
       if (currentBooking) {
         await fetchRecordings(currentBooking.id, title);
       }
-      
+
     } catch (error) {
       console.error('更新录音分析失败:', error);
       toast.error('更新录音分析失败，请稍后重试');
@@ -700,18 +714,18 @@ export default function MyBookingsPage() {
 
   const handleGenerateSummary = async () => {
     if (!currentBooking) return;
-    
+
     setIsGeneratingSummary(true);
     try {
       const title = `${formatDate(currentBooking.date)}-${currentBooking.start_time}-${currentBooking.end_time}`;
-      
+
       // 获取AI分析结果
       const aiAnalysis = await fetchGroupAnalysisByTitle(title);
-      
+
       // 构建会议纪要内容
       const attendeeNames = (currentBooking.booking_users?.map(u => u.nickname).join('、')) || '';
       const dateStr = `${formatDate(currentBooking.date)} ${currentBooking.start_time}-${currentBooking.end_time}`;
-      
+
       let summaryContent = `# 会议纪要\n\n`;
       summaryContent += `**会议信息**\n`;
       summaryContent += `- 会议室：${currentBooking.room?.name || ''}\n`;
@@ -719,23 +733,23 @@ export default function MyBookingsPage() {
       summaryContent += `- 参会人员：${attendeeNames}\n`;
       summaryContent += `- 会议发起xxx人：${currentBooking.member?.name || ''}\n`;
       summaryContent += `- 预定理由：${currentBooking.reason}\n\n`;
-      
+
       if (aiAnalysis) {
         summaryContent += `**AI分析摘要**\n${aiAnalysis}\n\n`;
       }
-      
+
       summaryContent += `**会议要点**\n`;
       summaryContent += `1. \n`;
       summaryContent += `2. \n`;
       summaryContent += `3. \n\n`;
-      
+
       summaryContent += `**后续行动**\n`;
       summaryContent += `- [ ] \n`;
       summaryContent += `- [ ] \n\n`;
-      
+
       summaryContent += `**备注**\n`;
       summaryContent += `\n`;
-      
+
       setMeetingSummary(summaryContent);
       toast.success('会议纪要模板已生成');
     } catch (error) {
@@ -755,7 +769,7 @@ export default function MyBookingsPage() {
       toast.error('请先输入会议纪要内容');
       return;
     }
-    
+
     try {
       if (ENABLE_SUMMARY_API) {
         // 保存到录音分组：优先使用已知 Id；否则按标题 upsert
@@ -799,13 +813,13 @@ export default function MyBookingsPage() {
   const formatTime = (start: string, end: string) => (end === '00:00' ? `${start} - 24:00` : `${start} - ${end}`);
   const formatUploadTime = (t?: string | null) => {
     if (!t) return '-';
-    const d = new Date(t); 
+    const d = new Date(t);
     if (!isNaN(d.getTime())) {
       // 显示更简洁的时间格式：MM-DD HH:mm
       return `${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     }
-    const n = (t || '').toString(); 
-    const norm = n.includes(' ') ? n.replace(' ', 'T') : n; 
+    const n = (t || '').toString();
+    const norm = n.includes(' ') ? n.replace(' ', 'T') : n;
     const d2 = new Date(norm);
     if (!isNaN(d2.getTime())) {
       return `${(d2.getMonth() + 1).toString().padStart(2, '0')}-${d2.getDate().toString().padStart(2, '0')} ${d2.getHours().toString().padStart(2, '0')}:${d2.getMinutes().toString().padStart(2, '0')}`;
@@ -865,7 +879,7 @@ export default function MyBookingsPage() {
                         <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
                         <div className="text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
-                            <strong>语音识别:</strong> 
+                            <strong>语音识别:</strong>
                             <span>{selected?.analysis ? selected.analysis : '-'}</span>
                             {selected && (
                               <Button
@@ -986,7 +1000,7 @@ export default function MyBookingsPage() {
                                         const timeStr = uploadTime !== '-' ? uploadTime : '';
                                         const duration = r.duration ? `(${Math.round(r.duration)}秒)` : '';
                                         const displayName = `录音${index + 1} ${timeStr} ${duration}`.trim();
-                                        
+
                                         return (
                                           <SelectItem key={r.id} value={String(r.id)} className="text-xs">
                                             {displayName}
@@ -1023,7 +1037,7 @@ export default function MyBookingsPage() {
                               const [, year, month, day, hour, minute] = utcMatch;
                               return `${year}-${month}-${day} ${hour}:${minute}`;
                             }
-                            
+
                             // 备用方案
                             return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
                           } catch {
@@ -1037,7 +1051,7 @@ export default function MyBookingsPage() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div
-                                onClick={() => handleOpenGroupDialog(booking.dialog_id)}
+                                onClick={() => handleOpenGroupDialog(booking)}
                                 className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-green-100 flex items-center justify-center"
                               >
                                 <MessageCircleMore className="w-4 h-4" />
@@ -1068,8 +1082,8 @@ export default function MyBookingsPage() {
                             <TooltipContent>修改时间</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors"
                           onClick={() => handleCancelBooking(booking.id)}
                         >
@@ -1126,7 +1140,7 @@ export default function MyBookingsPage() {
                             const [, year, month, day, hour, minute] = utcMatch;
                             return `${year}-${month}-${day} ${hour}:${minute}`;
                           }
-                          
+
                           // 备用方案
                           return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
                         } catch (error) {
@@ -1135,14 +1149,14 @@ export default function MyBookingsPage() {
                         }
                       })()}</div>
                     </div>
-                    
+
                     {/* 右侧操作区域 */}
                     <div className="flex items-center space-x-2 flex-shrink-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div
-                              onClick={() => handleOpenGroupDialog(booking.dialog_id)}
+                              onClick={() => handleOpenGroupDialog(booking)}
                               className="cursor-pointer p-1 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-green-100 flex items-center justify-center"
                             >
                               <MessageCircleMore className="w-4 h-4" />
@@ -1191,188 +1205,188 @@ export default function MyBookingsPage() {
                   const selected = rs.selectedId ? rs.recordings.find(r => r.id === rs.selectedId) : null;
                   return (
                     <div key={booking.id} className="border border-border rounded-lg p-4 bg-card text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="space-y-2 min-w-0 flex-1">
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-                          <div className="flex items-center min-w-0 max-w-full"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300 flex-shrink-0" /><span className="font-medium text-gray-600 dark:text-zinc-300 truncate">{booking.room?.name}</span></div>
-                          <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span></div>
-                          <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
-                          <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <div className="flex items-start gap-2">
-                            <strong>参会人员:</strong>
-                            <div className="flex-1 group">
-                              <span className="break-words">{booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '暂无参会人员'}</span>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="space-y-2 min-w-0 flex-1">
+                          <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                            <div className="flex items-center min-w-0 max-w-full"><MapPin className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300 flex-shrink-0" /><span className="font-medium text-gray-600 dark:text-zinc-300 truncate">{booking.room?.name}</span></div>
+                            <div className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDate(booking.date)}</span></div>
+                            <div className="flex items-center"><Clock className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatTime(booking.start_time, booking.end_time)}</span></div>
+                            <div className="flex items-center"><Timer className="w-4 h-4 mr-1 text-gray-500 dark:text-zinc-300" /><span className="text-gray-600 dark:text-zinc-300">{formatDuration(calculateDuration(booking.start_time, booking.end_time))}</span></div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <div className="flex items-start gap-2">
+                              <strong>参会人员:</strong>
+                              <div className="flex-1 group">
+                                <span className="break-words">{booking.booking_users?.length ? booking.booking_users.map(u => u.nickname).join(', ') : '暂无参会人员'}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
-                        {booking.cancel_reason && (<div className="text-sm text-muted-foreground"><strong>取消理由:</strong> {booking.cancel_reason}</div>)}
-                        <div className="hidden">
-                          <div className="flex items-center gap-2">
-                            <strong>AI分析:</strong> 
-                            <span>{selected?.analysis ? selected.analysis : '-'}</span>
-                            {selected && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditAnalysis(selected)}
-                                className="h-6 px-2 text-xs"
-                              >
-                                <Edit className="w-3 h-3 mr-1" />
-                                编辑
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="hidden">
-                          <strong>录音功能: {title}</strong>
-                          <div className="space-y-4 mt-3">
-                            <TooltipProvider>
-                              <div className="flex flex-wrap gap-3 sm:gap-4" style={{ maxWidth: '100%' }}>
-                                <div className="flex flex-row gap-3 sm:gap-4 mb-2 flex-wrap">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        onClick={() => startRecording(booking.id, title)}
-                                        className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                      >
-                                        <MicrophoneIcon size={22} className="sm:w-5 sm:h-5 text-blue-600" />
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>开始录音</TooltipContent>
-                                  </Tooltip>
-
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        onClick={() => stopRecording(booking.id)}
-                                        className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
-                                      >
-                                        <StopIcon size={22} className="sm:w-5 sm:h-5 text-red-600" />
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>结束录音</TooltipContent>
-                                  </Tooltip>
-
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
-                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
-                                      >
-                                        <SearchIcon size={22} className="sm:w-5 sm:h-5 text-gray-600" />
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>查询录音</TooltipContent>
-                                  </Tooltip>
-                                </div>
-
-                                <div className="flex gap-3 sm:gap-4 flex-wrap">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
-                                        className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
-                                      >
-                                        <AiIcon size={22} className={`sm:w-5 sm:h-5 ${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
-                                        {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
-                                  </Tooltip>
-
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        onClick={() => handleOpenMeetingSummary(booking)}
-                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
-                                      >
-                                        <svg className="w-5.5 h-5.5 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>会议纪要</TooltipContent>
-                                  </Tooltip>
-
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        onClick={() => handlePlaneAction(booking)}
-                                        className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
-                                      >
-                                        <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>发送会议纪要</TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </div>
-                            </TooltipProvider>
-                            {openRecordingBookingId === booking.id && (
-                              <div className="max-w-36 md:max-w-48">
-                                <Select
-                                  value={rs.selectedId !== null ? String(rs.selectedId) : undefined}
-                                  onValueChange={v => handleSelectValueChange(booking.id, v)}
-                                  disabled={rs.recordings.length === 0}
+                          <div className="text-sm text-muted-foreground"><strong>预定理由:</strong> {booking.reason}</div>
+                          {booking.cancel_reason && (<div className="text-sm text-muted-foreground"><strong>取消理由:</strong> {booking.cancel_reason}</div>)}
+                          <div className="hidden">
+                            <div className="flex items-center gap-2">
+                              <strong>AI分析:</strong>
+                              <span>{selected?.analysis ? selected.analysis : '-'}</span>
+                              {selected && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditAnalysis(selected)}
+                                  className="h-6 px-2 text-xs"
                                 >
-                                  <SelectTrigger className="w-28 md:w-32 text-xs">
-                                    <SelectValue placeholder={rs.recordings.length === 0 ? "暂无录音" : "选择录音"} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {rs.recordings.length === 0 ? (
-                                      <SelectItem value="__none__" disabled className="text-xs">暂无录音</SelectItem>
-                                    ) : (
-                                      rs.recordings.map(r => (
-                                        <SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>
-                                      ))
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-                            {openRecordingBookingId === booking.id && rs.audioURL && (
-                              <div className="pt-4">
-                                <AudioPlayer
-                                  src={rs.audioURL}
-                                  title="录音回放"
-                                  className="w-full max-w-full sm:max-w-xs md:max-w-md"
-                                />
-                              </div>
-                            )}
-                            {openRecordingBookingId === booking.id && rs.uploading && (
-                              <div className="pt-2"><p className="text-sm text-muted-foreground">正在上传录音...</p></div>
-                            )}
+                                  <Edit className="w-3 h-3 mr-1" />
+                                  编辑
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="text-xs text-muted-foreground">预定时间: {(() => {
-                          try {
-                            // 关键修复：数据库中的UTC时间实际上就是北京时间，只是格式问题
-                            const utcMatch = booking.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-                            if (utcMatch) {
-                              const [, year, month, day, hour, minute] = utcMatch;
-                              return `${year}-${month}-${day} ${hour}:${minute}`;
+                          <div className="hidden">
+                            <strong>录音功能: {title}</strong>
+                            <div className="space-y-4 mt-3">
+                              <TooltipProvider>
+                                <div className="flex flex-wrap gap-3 sm:gap-4" style={{ maxWidth: '100%' }}>
+                                  <div className="flex flex-row gap-3 sm:gap-4 mb-2 flex-wrap">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          onClick={() => startRecording(booking.id, title)}
+                                          className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                        >
+                                          <MicrophoneIcon size={22} className="sm:w-5 sm:h-5 text-blue-600" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>开始录音</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          onClick={() => stopRecording(booking.id)}
+                                          className={`cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${!rs.isRecording ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-100'}`}
+                                        >
+                                          <StopIcon size={22} className="sm:w-5 sm:h-5 text-red-600" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>结束录音</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          onClick={() => { setOpenRecordingBookingId(booking.id); fetchRecordings(booking.id, title); }}
+                                          className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
+                                        >
+                                          <SearchIcon size={22} className="sm:w-5 sm:h-5 text-gray-600" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>查询录音</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+
+                                  <div className="flex gap-3 sm:gap-4 flex-wrap">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          onClick={() => !rs.analyzing && handleAiAnalyze(booking)}
+                                          className={`relative cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm flex items-center justify-center w-10 h-10 ${rs.analyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                                        >
+                                          <AiIcon size={22} className={`sm:w-5 sm:h-5 ${rs.analyzing ? 'text-gray-400' : 'text-purple-600'}`} />
+                                          {rs.analyzing && <Loader2 className="w-3 h-3 animate-spin absolute -top-1 -right-1" />}
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{rs.analyzing ? '分析中...' : 'AI分析'}</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          onClick={() => handleOpenMeetingSummary(booking)}
+                                          className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
+                                        >
+                                          <svg className="w-5.5 h-5.5 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                          </svg>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>会议纪要</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          onClick={() => handlePlaneAction(booking)}
+                                          className="cursor-pointer p-2 rounded-md transition-all hover:scale-105 hover:shadow-sm hover:bg-gray-100 flex items-center justify-center w-10 h-10"
+                                        >
+                                          <PlaneIcon size={22} className="sm:w-5 sm:h-5 text-teal-600" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>发送会议纪要</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </div>
+                              </TooltipProvider>
+                              {openRecordingBookingId === booking.id && (
+                                <div className="max-w-36 md:max-w-48">
+                                  <Select
+                                    value={rs.selectedId !== null ? String(rs.selectedId) : undefined}
+                                    onValueChange={v => handleSelectValueChange(booking.id, v)}
+                                    disabled={rs.recordings.length === 0}
+                                  >
+                                    <SelectTrigger className="w-28 md:w-32 text-xs">
+                                      <SelectValue placeholder={rs.recordings.length === 0 ? "暂无录音" : "选择录音"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {rs.recordings.length === 0 ? (
+                                        <SelectItem value="__none__" disabled className="text-xs">暂无录音</SelectItem>
+                                      ) : (
+                                        rs.recordings.map(r => (
+                                          <SelectItem key={r.id} value={String(r.id)} className="text-xs">{r.title} - {formatUploadTime(r.upload_time)}</SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                              {openRecordingBookingId === booking.id && rs.audioURL && (
+                                <div className="pt-4">
+                                  <AudioPlayer
+                                    src={rs.audioURL}
+                                    title="录音回放"
+                                    className="w-full max-w-full sm:max-w-xs md:max-w-md"
+                                  />
+                                </div>
+                              )}
+                              {openRecordingBookingId === booking.id && rs.uploading && (
+                                <div className="pt-2"><p className="text-sm text-muted-foreground">正在上传录音...</p></div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">预定时间: {(() => {
+                            try {
+                              // 关键修复：数据库中的UTC时间实际上就是北京时间，只是格式问题
+                              const utcMatch = booking.created_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+                              if (utcMatch) {
+                                const [, year, month, day, hour, minute] = utcMatch;
+                                return `${year}-${month}-${day} ${hour}:${minute}`;
+                              }
+
+                              // 备用方案
+                              return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
+                            } catch {
+                              console.error('时间格式化错误');
+                              return booking.created_at;
                             }
-                            
-                            // 备用方案
-                            return booking.created_at.replace(/T/, ' ').replace(/\.\d+Z?$/, '').substring(0, 16);
-                          } catch {
-                            console.error('时间格式化错误');
-                            return booking.created_at;
-                          }
-                        })()}</div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2">
-                        <Badge variant="secondary">已取消</Badge>
+                          })()}</div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2">
+                          <Badge variant="secondary">已取消</Badge>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
                 {cancelledBookings.length > cancelledShowCount && (
                   <div className="flex justify-center mt-4"><Button onClick={() => setCancelledShowCount(c => c + 10)} disabled={cancelledLoading}><RefreshCcw className={`w-4 h-4 mr-2${cancelledLoading ? ' animate-spin' : ''}`} />加载更多</Button></div>
                 )}
@@ -1409,7 +1423,7 @@ export default function MyBookingsPage() {
                 </svg>
               </button>
             </div>
-            
+
             <div className="flex flex-wrap gap-4 mb-4">
               <Button
                 onClick={handleGenerateSummary}
@@ -1425,7 +1439,7 @@ export default function MyBookingsPage() {
                 )}
                 {isGeneratingSummary ? '生成中...' : '生成模板'}
               </Button>
-              
+
               <Button
                 onClick={handleSaveSummary}
                 variant="outline"
@@ -1437,7 +1451,7 @@ export default function MyBookingsPage() {
                 保存
               </Button>
             </div>
-            
+
             <div className="flex-1">
               <textarea
                 value={meetingSummary}
@@ -1492,13 +1506,13 @@ export default function MyBookingsPage() {
                 </svg>
               </button>
             </div>
-            
+
             <div className="mb-4">
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                 录音标题: {editingRecording.title}
               </p>
             </div>
-            
+
             <div className="flex-1 mb-4">
               <textarea
                 value={editingAnalysis}
@@ -1508,7 +1522,7 @@ export default function MyBookingsPage() {
                 style={{ fontFamily: 'monospace' }}
               />
             </div>
-            
+
             <div className="flex flex-wrap gap-4 justify-end">
               <Button
                 variant="outline"

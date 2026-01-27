@@ -212,10 +212,10 @@ export const bookingApi = {
     } catch {
       token = localStorage.getItem('token') || '';
     }
-    
+
     // 打印请求数据，用于调试
     console.log('Updating booking users:', { id, bookingUsers });
-    
+
     const response = await fetch(`${API_BASE_URL}/bookings/${id}/users`, {
       method: 'PUT',
       headers: {
@@ -224,13 +224,13 @@ export const bookingApi = {
       },
       body: JSON.stringify({ booking_users: bookingUsers }),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error updating booking users:', errorText);
       throw new Error(`Failed to update booking users: ${response.statusText}`);
     }
-    
+
     return response.json();
   },
 
@@ -388,7 +388,7 @@ export const userApi = {
       }
     );
   },
-}; 
+};
 
 // 外部录音服务：RecordingGroup CRUD（通过环境变量配置，避免写死）
 const RECORDSRV_BASE =
@@ -467,7 +467,7 @@ export const recordingGroupApi = {
     return res.json();
   },
 
- 
+
 
   // 局部修改（仅修改传入字段，保留其余不变）
   async partialUpdate(id: number, payload: Partial<RecordingGroupPayload>, token?: string) {
@@ -497,7 +497,7 @@ export const recordingGroupApi = {
     if (!res.ok) throw new Error('删除 RecordingGroup 失败');
     return { success: true } as const;
   },
-  
+
   // 通过 name upsert：存在则 PATCH，不存在则 CREATE
   async upsertByName(name: string, payload: Partial<RecordingGroupPayload>, token?: string) {
     token = token || (await getRecordSrvToken());
